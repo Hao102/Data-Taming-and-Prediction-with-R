@@ -1,0 +1,578 @@
+---
+title: 'Data Taming and Prediction: Assignment 2 Template'
+author: 'Tran Huu Hao Nguyen (student ID: a1906373)' 
+date: "07-April_2026"
+output:
+  pdf_document:
+    df_print: paged
+---
+
+## Due date: 10:00am on 21st of April 2026
+
+```{r}
+library("tidyverse")
+
+library("tinytex")
+
+#tinytex::install_tinytex(force = TRUE)
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Some rules about your submissions:
+
+-   **You must complete this assignment using Quarto R Markdown**;
+-   Your assignment must be submitted as **pdf and QMD markdown only**;
+-   Include any working when providing solutions;
+-   Provide all numerical answers to **3 decimal places**;
+-   Make sure you include both your code and R output / plots in your answers;
+-   You can submit more than once if you find errors and your latest submission will be marked;
+-   Make sure you only upload one document for your final submission. If you submit multiple pages (i.e. one per question) you will be deducted 10% per page submitted;
+-   Penalties for late submission - within 24 hours no marks will be lost. After 24 hours, assignment is not marked and you get zero; and
+-   Finally, make sure you check your submitted assignment is the correct one, as we cannot accept other submissions after the due date.
+
+## Assignment 2
+
+In this assignment, we will begin an analysis of a dataset describing board games. This data was originally downloaded from a data project called Tidy Tuesday (\url{https://github.com/rfordatascience/tidytuesday/tree/master/data/2022/2022-01-25}) but has been modified for the purposes of this assessment.
+
+We will analyse properties and build a linear model in this assignment based on this dataset from Assignment 1.
+
+## Scenario
+
+You are working as a data analyst for Abe's Boardgames, a prominent board game company based in the United States. Abe's Boardgames has built a reputation for producing high-quality, innovative games that appeal to both casual players and serious enthusiasts.
+
+Abe, the CEO of Abe's Boardgames, is contemplating a strategic shift to either focus on producing games with more mainstream appeal or to continue emphasising niche designs. Currently, Abe wants to understand the impact of game ratings on revenue to guide his company's future strategy.
+
+The company is particularly interested in answering the following questions:
+
+-   Is there a relationship between the average board game rating and its total revenue?
+
+-   Does a higher average rating lead to lower or higher revenue?
+
+-   Can user ratings be used to predict the revenue for board games?
+
+# Executive summary \[4 marks\]
+
+You need to write an executive summary to present your findings to Abe from Abe's Boardgames. It must include
+
+-   A recap of the project outline including the purpose of the project and the problem you are solving;
+
+-   A very brief outline of what you did;
+
+-   Your final recommendation to Abe's Boardgames.
+
+Your executive summary should be written as if you are presenting it to Abe's Boardgames. They will read the executive summary to get a quick overview; to evaluate the quality of the report; or even to make a decision. It should be no more than half a page, and contain no figures, plots or code. It should be written in plain English with no or minimal terminology. If terminology is included, it must be explained.
+
+
+** The purpose of this project was to help company based in the United States Abe’s Boardgames understand the impact that the average rating of board games has on their revenue as well as how this data could be used in future business decisions. When considering which direction to take the company, we analyzed whether Abe should focus on games with high average ratings or if creating new mainstream or niche games would bring in more revenue through catering to a wider or dedicated customer base. Previous analysis of a large dataset of board games showed a positive correlation between average rating and revenue. First, we treated the uneven revenue data to make it as usable as possible. Then we built a model that projects revenue for games at different rating levels and analyzed the results. There is a strong, positive correlation between average rating for a game and revenue. Although there is a lot of variation from game to game, there is a significant increase in expected revenue from raising a game’s rating. However, individual games can have significantly different revenue even when averaged at the level of a rating bin. Our analysis indicates that Abe’s Boardgames should continue to focus on producing games that receive high ratings and subsequently increase revenue; however it is important to consider a variety of other factors including ratings, target audience, marketing, and market conditions when making strategic decisions.
+
+
+## Question 1: Data Preparation \[1 mark\]
+
+Load in the board games data, `board_games.csv`, and then print a summary.
+
+-To begin with, we will proceed to load in the board games data.
+
+```{r}
+#  we will proceed to load in the board games dataset.
+board_games <- read_csv("board_games.csv")
+# Then, we continue with the summary of the dataset.
+summary(board_games)
+
+```
+
+Therefore, we have completed loading the board games dataset and printing a summary.
+
+## Question 2: Univariate Analysis and Transforming \[5 marks\]
+
+#### a) Describe the distributions of revenue. Consider shape, spread, location and outliers.
+
+```{r}
+# Firstly, we proceed to calculate the detailed summary statistics to complete the "Describe the distribution of revenue" section.
+# We see that these statistics help to describe things specifically, such as:
+# - location: mean and median
+# - spread: standard deviation, IQR, range
+# - outliers: using the 1.5 x IQR rule
+revenue_stats_need <- board_games %>%
+  summarise(
+    min_revenue = min(revenue, na.rm = TRUE),
+    q1_revenue = quantile(revenue, 0.25, na.rm = TRUE),
+    median_revenue = median(revenue, na.rm = TRUE),
+    mean_revenue = mean(revenue, na.rm = TRUE),
+    q3_revenue = quantile(revenue, 0.75, na.rm = TRUE),
+    max_revenue = max(revenue, na.rm = TRUE),
+    sd_revenue = sd(revenue, na.rm = TRUE),
+    iqr_revenue = IQR(revenue, na.rm = TRUE)
+  )
+revenue_stats_need
+# Next, we continue by calculating outlier boundaries using the IQR rule.
+# We observe that the outliers are the values below: Q1 - 1.5 * IQR and above:Q3 + 1.5 * IQR
+
+lower_bound <- revenue_stats_need$q1_revenue - 1.5 * revenue_stats_need$iqr_revenue
+upper_bound <- revenue_stats_need$q3_revenue + 1.5 * revenue_stats_need$iqr_revenue
+
+lower_bound
+upper_bound
+
+# Next, we proceed to count the number of outliers.
+board_games %>%
+  summarise(
+    number_of_outliers = sum(revenue < lower_bound | revenue > upper_bound, na.rm = TRUE)
+  )
+# Next, we proceed to draw a revenue frequency chart; observing the histogram helps us describe the shape of the distribution.
+
+ggplot(board_games, aes(x = revenue)) +
+  geom_histogram(bins = 30) +
+  labs(
+    title = "Histogram of Revenue",
+    x = "Revenue",
+    y = "Frequency"
+  )
+# Next, we proceed to draw a box plot of revenue; observing the box plot helps us detect skewness and potential outliers.
+ggplot(board_games, aes( y = revenue)) +
+  geom_boxplot() +
+  labs(
+    title = "Boxplot of Revenue",
+    y = "Revenue"
+  )
+```
+
+-   Shape: The revenue distribution is strongly right-skewed (positively skewed). The histogram has a high peak on the left side and a long tail on the right side. Only a few games generate extremely high revenue in comparison to the rest of the games.
+
+-   Location: the natural centre of the distribution is better represented by the median of 1,393,169.000 than by the mean of 2,487,400.000. This high mean is itself a product of the right skewness of the distribution, and of the very high levels of revenue.
+
+-   Spread: The spread of the data is very large. The range of the data is from 100.000 to 53,171,387.000. The IQR of the data is 2,007,989.000. This means the middle 50% of the values have a very wide spread. The standard deviation is 3,480,696.000, which also confirms the high spread of the data.
+
+-   Outliers: There are a large number of upper outliers. Using the IQR rule, the upper bound is 5,770,765.000, and there are 700 observations above this threshold. The boxplot clearly shows many extreme values above the upper whisker. There are no meaningful lower outliers, as revenue values cannot be substantially below zero.
+
+
+#### b) Append a new variable named `log_revenue` to the tibble, which contains the logarithmic transform of the `revenue`. Define the new variable as `log_revenue = log(revenue)`.
+
+-   We proceed to add a new variable named `log_revenue` to tibble.
+
+```{r}
+# To begin with, we append a new variable log_revenue to the dataset.
+# We continue with using logarithms: log(revenue)
+board_games <- board_games %>%
+  mutate(
+    log_revenue = log(revenue)
+  )
+# We proceed to examine the first few rows to confirm.
+head(board_games)
+```
+
+Therefore, we have completed appending a new variable named `log_revenue` to the tibble.
+
+#### c) Plot the distribution of `log_revenue` as a histogram. Decide which of `revenue` and `log_revenue` is more appropriate for analysis. Justify your answer.
+
+-   We will now plot the distribution of `log_revenue` as a histogram. We will consider whether `revenue` or `log_revenue` is more suitable for analysis.
+
+```{r}
+# We will now proceed to plot the histogram of log revenue.
+ggplot(board_games, aes(x = log_revenue)) +
+  geom_histogram(bins = 30) +
+  labs(
+    title = "Histogram of Log Revenue",
+    x = "Log(Revenue)",
+    y = "Frequency"
+  )
+```
+
+Although there was some positive skewness in the shape of the distribution of the log of revenue, there was even more positive skewness in the base data. The few very high values were mostly on the higher end of the range rather than the lower end of the range. The distribution of the revenue is dominated by very few high values. Therefore, a transformation such as a log to make the variables more suitable for a linear regression model would be the revenue logarithm. The transformation causes the variables to be nearly normally distributed without any outliers. The log revenue distribution reduces the impact of individual observations and stabilizes the variance among the observations. The log revenue distribution is very normal and easy to model and to interpret.
+
+
+## Question 3: Model Interpretation \[6 marks\]
+
+Let's build a model to predict the revenue of each board game with average rating.
+
+#### a) State the slope and intercept of the linear regression model below. Interpret these values in context.
+
+-   We also state the slope and intercept of the linear regression.
+
+```{r}
+# We proceed to apply the linear regression model: revenue ~ average
+model1 <- lm(revenue ~ average, data = board_games)
+# Next, we summarize the display model.
+summary(model1)
+```
+
+-   From the regression output, the estimated coefficients are:
+Intercept (β₀): -4,937,371.000
+Slope (β₁): 1,182,187.000
+Using these estimates, the fitted linear model can be written as:
+$$
+\widehat{revenue} = -4,937,371.000 + 1,182,187.000 \times average
+$$
+- Interpretation of the slope:
+This is the change in the response variable (revenue) for a change of one in the predictor variable (average rating). The slope indicates that on average, for every increase of 1 in average rating, revenue is expected to increase by 1,182,187.000 dollars. Again, the result is positive and consistent with what we found above.
+
+
+- Interpretation of the intercept:
+For the intercept, the predicted revenue under the assumption that the average rating was 0 would be around -4,937,371.000 dollars. This value is not meaningful, as a rating of 0 is not possible for ratings of board games. Board game ratings don’t work that way.
+
+
+
+- Statistical significance:
+For the coefficient on average_rating, the p-value is less than 2e-16, which is very small. Therefore we can be very confident that the slope coefficient for average_rating differs from zero, meaning average_rating is a statistically significant predictor of revenue.
+
+
+
+#### b) State the slope and intercept of the linear regression model below (here we are using the log transformed revenue, `log_revenue`). Interpret the values in context. Is there a statistically significant relationship between average rating and revenue?
+
+
+-   We express the slope and intercept of the linear regression model using logarithm-transformed revenue, `log_revenue`.
+
+
+```{r}
+# Linear model with log-transformed revenue
+model2 <- lm(log_revenue ~ average, data = board_games)
+
+# View summary
+summary(model2)
+```
+
+- From the regression output, the estimated coefficients are:
+
+Intercept (β₀): 11.428
+Slope (β₁): 0.446
+
+Using these estimates, the fitted linear model can be written as:
+
+$$
+\widehat{\log(revenue)} = 11.428 + 0.446 \times average
+$$
+
+- Interpretation of the slope:
+This is the slope for the change in the response variable (log revenue) for a one unit change in the predictor (average rating). Thus, for every 1 unit increase in average rating, the predicted log revenue would increase on average by 0.446. We would then need to calculate the approximate percentage change in revenue for each 1 unit increase in average rating. In this case, we would expect an approximate 44.600% increase in revenue for every 1 unit increase in average rating. The slope for this model is very positive indicating that the effect of the average rating on the outcome (log revenue) is quite large on average.
+
+
+- Interpretation of the intercept:
+The intercept term of the regression can be thought of as the predicted value of the log revenue when the average rating equals 0. For this model, that would be approximately 11.428; but as with any regression, the intercept does not have to be within the actual range of the independent variable, and a average rating of 0 is certainly not realistic for board game ratings.
+
+
+- Statistical significance:
+For the average rating coefficient the p-value is less than 2e-16, i.e. extremely small. This indicates strong evidence that the slope of the regression line is different from zero. Thus we have a statistically significant relationship between average rating and the log revenue.
+
+#### c) Consider the two sets of assumption-checking plots (Figure 1 and Figure 2). Use the two plots to decide which of the two linear models is preferable. Justify your answer by considering linearity, homoscedasticity, and normality.
+
+To begin with, we will consider the two sets of assumption-checking plots for the two models: model 1: revenue ~ average, and model 2: log(revenue) ~ average. We will determine which linear model is more suitable by analyzing linearity, homoscedasticity, and normality.
+
+** Linearity:
+
+-Firstly, we check the linearity of model 1: revenue ~ average
+
+```{r}
+plot(model1, which = 1)  # Residuals vs Fitted (revenue)
+```
+The residuals vs. fitted plot for model 1 does not indicate a random distribution of the residuals of the model, and the red line is not flat. Instead, it slopes downward from left to right, suggesting that there is not a linear relationship between average rating and revenue.
+
+Therefore, the linearity assumption is not well satisfied for model 1.
+
+
+-Secondly, we check the linearity of model 2: log(revenue) ~ average
+
+```{r}
+plot(model2, which = 1)  # Residuals vs Fitted (log_revenue)
+```
+
+The red curve in the residual vs fitted plot for model 2 is almost horizontal over the range of the predictions. This means there is little evidence of remaining curvature in the residuals. In addition, the residual values appear to be randomly distributed around zero. This is consistent with the assumption of linearity being much better met for the transformed response variable.
+
+Therefore, the linearity assumption is well satisfied for model 2.
+
+
+** Homoscedasticity:
+
+-Firstly, we want to assess homoscedasticity, we examine the Scale-Location plots for model 1: revenue ~ average.
+
+
+```{r}
+plot(model1, which = 3)
+```
+
+The Scale-Location plot for model 1 appears to have a positive trend to it. The residuals have increasing variance as the fitted values increase. In addition, the red curve for the scale does not remain flat as it increases at the lower fitted values, violating the constant variance assumption.
+
+Therefore, we notice that the homoscedasticity assumption is clearly violated, and hence we employ a heteroscedastic extension to the model, which we denote model 1.
+
+
+-Secondly, we want to assess homoscedasticity, we examine the Scale-Location plots for model 2: log(revenue) ~ average
+
+
+
+```{r}
+plot(model2, which = 3)
+```
+
+From the Scale-Location plot for model 2 we can see that the points are more evenly distributed, but the red line still shows a slightly positive trend. This means that the predictions show an increase in variance at higher values, but in a less dramatic fashion after taking the log of the response variable. Thus the assumption of constant variance is fully met.
+
+Therefore, the assumption of homoscedasticity is reasonably satisfied for the log-transformed model.
+
+
+** Normality:
+
+-Firstly, to assess normality, we examine the Q-Q plots of the residuals for model 1: revenue ~ average.
+
+
+
+```{r}
+# Q-Q plot for model 1
+plot(model1, which = 2)
+```
+
+For the model 1, the Q-Q plot shows that the points are clearly away from the line especially on the upper tail, curving off from it. Although within the area -2 to 2 the points are roughly linear, they don't exactly follow the reference line. From this we can conclude that the residuals are not normally distributed. In other words, the normality assumption for model 1 is not met.
+
+Therefore, the normality assumption is not satisfied for model 1.
+
+
+
+-Secondly, to assess normality, we examine the Q-Q plots of the residuals for model 2: log(revenue) ~ average.
+
+
+
+```{r}
+# Q-Q plot for model 2
+plot(model2, which = 2)
+```
+
+The Q-Q plot for model 2 appears to show most of the points following the reference line well, especially in the middle (around -2 to 2). Most of the residuals are normally distributed. There are some departures at the extremes but those are expected to occur.
+
+
+Therefore, the normality assumption is reasonably satisfied for model 2.
+
+
+**Conclusion:
+
+So we’re going with the log revenue model (model 2) because it meets all of the conditions we needed, it’s linear, it has constant variance, and it’s normally distributed. So this is the one we would use for modeling and analysis.
+
+
+## Question 4: Prediction \[6 marks\]
+
+Abe's Boardgames is evaluating how different average ratings could influence the revenue of new board games. There are three areas of investigation:
+
+-   Lower Ratings: In this strategy, Abe's Boardgames plans to investigate board games with an average rating of 5.0.
+
+-   Maintaining Current Ratings: Continuing with their current approach, Abe's Boardgames will aim for an average rating of 7.8 for their games.
+
+-   Developing Extra High-Rated Games: This strategy involves producing premium games that aim for an average rating of 9.5.
+
+#### a) Using the linear model from question 3(b), predict the revenue for the average board game ratings of interest. You may use R code or compute it by hand (showing your working).
+
+Here is the code for the linear model. Uncomment the code when you are ready to use it. It will not work until you have defined the variable `log_revenue` and the tibble `boardgames`.
+
+```{r linear model for prediction}
+#log_model <- lm(log_revenue ~ average, data = boardgames)  
+```
+
+- Using the linear model from question 3(b), predict the revenue for the average board game ratings of interest.
+To predict revenue, we use the fitted linear model from Question 3(b):
+
+$$
+\widehat{\log(revenue)} = 11.428 + 0.446 \times average
+$$
+Because this model predicts log(revenue) rather than revenue directly, we first calculate the predicted value of log(revenue), and then convert it back to the original revenue scale using the exponential function:
+
+$$
+\widehat{revenue} = \exp(\widehat{\log(revenue)})
+$$
+
+
+1. Lower Ratings: average rating = 5.0
+
+We proceed to substituting average = 5.0 into the model:
+
+```{r}
+log_revenue_1 = 11.428 + 0.446 * 5.0
+log_revenue_1
+
+# Now convert back to the revenue scale:
+revenue_1 = exp(log_revenue_1)
+revenue_1
+```
+
+Therefore, for a board game with an average rating of 5.0, the predicted revenue is $854,267.800.
+
+
+
+2. Maintaining Current Ratings: average rating = 7.8
+
+We proceed to substituting average = 7.8 into the model:
+
+```{r}
+log_revenue_2 = 11.428 + 0.446 * 7.8
+log_revenue_2
+
+# Now convert back to the revenue scale:
+revenue_2 = exp(log_revenue_2)
+revenue_2
+```
+
+Therefore, for a board game with an average rating of 7.8, the predicted revenue is $2,978,112.000.
+
+
+
+3. Developing Extra High-Rated Games: average rating = 9.5
+
+We proceed to substituting average = 9.5 into the model:
+
+```{r}
+log_revenue_3 = 11.428 + 0.446 * 9.5
+log_revenue_3
+
+# Now convert back to the revenue scale:
+revenue_3 = exp(log_revenue_3)
+revenue_3
+```
+
+Therefore, for a board game with an average rating of 9.5, the predicted revenue is $6,356,573.000.
+
+
+#### b) Present your predictions in a table.
+
+The predicted revenues for different average ratings are summarised in the table below:
+
+| Average Rating | Predicted Revenue ($) |
+| -------------- | --------------------- |
+| 5.0            | 854,267.800           |
+| 7.8            | 2,978,112.000         |
+| 9.5            | 6,356,573.000         |
+
+This table was generated in R program.
+
+```{r}
+library(tibble)
+
+prediction_table <- tibble(
+  `Average Rating` = c(5.0, 7.8, 9.5),
+  `Predicted Revenue ($)` = c(854267.800, 2978112.000, 6356573.000)
+)
+
+prediction_table
+```
+
+
+#### c) Nick plays a board game and gives it a rating of 4.8. To estimate the board game's potential revenue, should you use a confidence interval or a prediction interval? Justify your choice.
+
+- In this case, we should use the prediction interval.
+
+We're looking at the potential revenue for one game, which has an average rating of 4.8, not the average revenue of all games with an average rating of 4.8. This is not a confidence interval (which would estimate the mean for all games with that average rating) but rather a prediction interval. A prediction interval takes into account both the uncertainty of the model as well as the natural variability between individual games. So this prediction interval gives a much better estimate for where the revenue of this particular game will fall.
+
+#### d) Using the linear model, calculate the 95% interval (either confidence or prediction) for the revenue. Interpret the interval in context.
+
+-Since we are estimating revenue for a single board game with an average rating of 4.8, a 95% prediction range is appropriate.
+
+To begin with, we create a new dataset for a board game with an average rating of 4.8, then we use the fitted model to obtain a 95% prediction interval on a logarithmic scale.
+
+```{r}
+new_game <- tibble(average = 4.8)
+
+pred_int_log <- predict(
+  model2,
+  newdata = new_game,
+  interval = "prediction",
+  level = 0.95
+)
+
+pred_int_log
+```
+Then, because the model was fitted using log_revenue, we continue to convert the correction values and interval limits back to the original revenue scale using the exponential function:
+
+```{r}
+pred_int_revenue <- exp(pred_int_log)
+pred_int_revenue
+```
+
+From the model, after converting back to the original revenue scale, we obtain:
+Predicted revenue: 780,262.400
+Lower bound: 147,613.100
+Upper bound: 4,124,359.000
+
+
+Interpretation:
+
+
+Based on the fitting of the model, for an average rated board game of 4.8, we can expect such a game to generate approximately $780,262.400 in revenue. The 95% prediction interval for this single game would be $147,613.100 to $4,124,359.000, meaning that we are 95% confident that a game rated 4.8 would fall within this range of potential revenue. As you can see, the range of possible revenue for a single game is quite large.
+
+
+## Question 5: Limitations \[3 marks\]
+
+#### a) Do you think there was a time period (e.g. 2020-2021) where the demand for board games and hence, increase in ratings and revenue are not representative of a typical time period? Explain.
+
+- To illustrate this, we can examine how both revenue and average rating change across different years:
+
+```{r}
+
+# Summary: Calculate average revenue and average rating by year
+board_games %>%
+  group_by(year) %>%
+  summarise(
+    avg_revenue = mean(revenue, na.rm = TRUE),
+    avg_rating = mean(average, na.rm = TRUE)
+  ) %>%
+  arrange(year) %>% 
+  print(n = Inf)
+
+# Visualisation: Revenue distribution by year 
+ggplot(board_games, aes(x = factor(year), y = revenue)) +
+  geom_boxplot() +
+  labs(
+    title = "Revenue Distribution by Year",
+    x = "Year",
+    y = "Revenue"
+  )
+
+# Visualisation: Average rating distribution by year 
+ggplot(board_games, aes(x = factor(year), y = average)) +
+  geom_boxplot() +
+  labs(
+    title = "Average Rating Distribution by Year",
+    x = "Year",
+    y = "Average Rating"
+  )
+
+```
+
+Yes, there is strong evidence to suggest that the period (e.g. 2020-2021) is not fully representative of a typical time period.
+
+Both average revenue and average rating continue to rise in the summary table. Average revenue increased from around 2,048,441.000 dollars in 2009 to well over 3,776,040.000 dollars in 2021, and then jumped to 4,318,140.000 dollars in 2022. Average rating rose steadily from around 6.06 in 2009 to 7.41 in 2021 and 7.81 in 2022. The visualisations confirm this positive development. The revenue boxplot shows a dramatic increase in variability of revenue, with many extreme high-value observations in recent years. This means that there are some board games that recently have sold for an unusually high amount of money. The average rating boxplot shows a slow but steady increase in ratings over time.
+
+However, this period of activity was both temporary and abnormal. As such, the data from this period may distort the relationship observed in the model between the average rating and its revenue. Future predictions are therefore less reliable in what is expected to be a return to normal trading.
+
+#### b) Abe's Boardgames is in the research and development phase of producing a new children's board game. List potential limitations of using our current linear model to predict the expected revenue for this new game. How can we address these limitations?
+
+There are several limitations in using the current linear model to predict the expected revenue for a new children's board game.
+
+1. High variability in revenue:
+
+The prediction intervals for individual games are wide, meaning there is significant uncertainty in predicting revenue for individual contests. As such, projected revenue for particular games is likely to be off the mark.
+
+Solution:
+
+We could do a better job of prediction. One way to do a better job of prediction is to use more complex models such as multiple regression or machine learning models, but another approach would be to include more explanatory variables into the models that we currently use.
+
+
+2. Not specific to children's games:
+
+The model has been trained using data from all board game types, and as such, it may not generalise well to children specific board games (and their potential rating and revenue profiles).
+
+Solution:
+
+We could have tackled this as a separate model building exercise using only children's board games and their corresponding data. Alternatively, we included a categorical variable for game type in the model to account for differences in performance between segments.
+
+
+3. Ratings may be biased or unreliable:
+
+Average ratings can be misleading. Average ratings are skewed by a handful of users posting rates after a brief period of play, early reviewers misrepresenting the experience, or a biased audience.
+
+Solution:
+
+We can add more weighted metrics such as "number of ratings" to improve accuracy, if desired.
+
+4. Limited predictors:
+
+The model relies only on the average rating to predict future revenue; clearly this will not be accurate as there are many other factors which will influence the revenue (e.g. game category: playing_time, max_players, childrens_game, party_game, territory_building).
+
+Solution:
+
+We could also include some other relevant variables to the model to hopefully better predict some of the revenue drivers.
+
