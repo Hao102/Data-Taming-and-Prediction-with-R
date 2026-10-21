@@ -1,0 +1,1119 @@
+---
+title: "Assignment 3 Template"
+subtitle: 'Tutor: Miss Kalale Shrinivas Ksheeraja ; Course Coordinator: Dr Nicholas Fewster-Young'
+author: "Tran Huu Hao Nguyen"
+date: "15-May-2026"
+output:
+ pdf_document: default
+ html_document:
+  df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Due date: 10:00am on 25th of May 2026
+
+```{r}
+library("tidyverse")
+
+library("tinytex")
+
+#tinytex::install_tinytex(force = TRUE)
+```
+
+## Assignment 3 \[80 marks\]
+
+Some rules about your submissions:
+
+-   **You must complete this assignment using Quarto R Markdown**;
+-   Your assignment must be submitted as **pdf and QMD markdown only**;
+-   Include any working when providing solutions;
+-   Provide all numerical answers to **3 decimal places**;
+-   Make sure you include both your code and R output / plots in your answers;
+-   You can submit more than once if you find errors and your latest submission will be marked;
+-   Make sure you upload both documents for your final submission.
+-   Penalties for late submission - within 24 hours no marks will be lost. After 24 hours, assignment is not marked and you get zero; and
+-   Finally, make sure you check your submitted assignment is the correct one, as we cannot accept other submissions after the due date.
+
+## Scenario for Assignment 3
+
+In this assignment, we will begin an analysis of a dataset describing board games. The purpose of this assessment is to compare two predictive models on the very familiar board games dataset (from board game geek). The data was originally downloaded from a data project called Tidy Tuesday but has been modified for the purposes of this assessment.
+
+(<https://github.com/rfordatascience/tidytuesday/tree/master/data/2022/2022-01-25>)
+
+Your task will include preprocessing, model building and tuning, and finally, model comparison.
+
+These are skills that we have been developing in the past few weeks and which you will deploy in your final practical report. For this assessment you do not need to write a report. However, please label all question answers clearly. Include any relevant code in your answers, as there are marks awarded for code!
+
+Our aim is to build a predictive model that will determine whether a game falls into the high_rating category, based on the dataset online.
+
+We will analyse properties and build models in this assignment based on this dataset from Assignment 2.
+
+The report is a total of 80 marks and you the distribution of marks are below. You need to submit your report in the following guided structure below and provide Executive Summary, Discussion and Conclusion. It is very important that you insert your answers and explain them in the Methods and Results using English and paragraphs. **If you fail to do so then you a deduction of 5 marks per section** **will be enforced.**
+
+## Format for Submission
+
+Please follow th;\[e following structure and submit as follows:
+
+1.  **Executive Summary \[5 marks\]**
+
+2.  **Methods (Part A & B) \[25 marks\]**
+
+3.  **Results (Part C, D & E) \[35 marks\]**
+
+4.  **Discussion \[10 marks\]**
+
+5.  **Conclusions \[5 marks\]**
+
+6.  **Statistical Appendix (Include all your answers to the Parts here)**
+
+## Part A: Data cleaning \[10 marks\]
+
+You may use the **cleaned version for a deduction of 10 marks**, or you may clean the data yourself. If you choose to clean the data yourself, you will need to perform the following steps:
+
+#### 1. Define a new categorical variable called high_rating which assigns average ratings of 6.5 or higher to the level yes, and ratings lower than 6.5 to the level no. Make sure this variable is coded as a factor. \[3 mark\]
+
+I used knowledge from Week 2: Text Manipulation in R to complete this part of the assignment.
+
+Firstly, We define a new categorical variable called high_rating, assigning an average rating of 6.5 or higher to "yes" and a rating lower than 6.5 to "no". Then, we ensure this variable is coded as a factor.
+
+```{r}
+# To begin with, We continue to read the uncleaned dataset
+boardgames_1 <- read_csv("not_cleaned_data-1.csv")
+
+# Next, we proceed to create a numeric average rating variable and classify games into high_rating.
+boardgames_1 <- boardgames_1 %>%
+  mutate(
+    # Extract board game rank
+    rank = str_extract(
+      boardgame_rating,
+      "(?<=rank of )\\d+"
+    ) %>% as.numeric(),
+    
+    # Extract average user rating
+    average_rating = str_extract(
+      boardgame_rating,
+      "(?<=average user rating of )[0-9.]+"
+    ) %>% as.numeric(),
+    
+    # Extract number of users who rated the game
+    user_rated = str_extract(
+      boardgame_rating,
+      "(?<=from )\\d+(?= users)"
+    ) %>% as.numeric(),
+    
+    # Create binary response variable based on rating threshold
+    high_rating = if_else(
+      average_rating >= 6.5,
+      "yes",
+      "no"
+    ),
+    
+    # Convert high_rating into a factor
+    high_rating = factor(
+      high_rating,
+      levels = c("no", "yes")
+    )
+  )
+
+# Then, we proceed to check the extracted variables and the new factor variable.
+glimpse(boardgames_1)
+
+# Finally, we continue with display counts for each rating category.
+table(boardgames_1$high_rating)
+```
+
+In addition to the existing factors, a new binary factor called high_rating has been created in order to use this data for classification models in the subsequent parts of the analysis.
+
+#### 2. Exclude board games which have been released more than once (i.e. exclude all board games for which there are more than one with the same name). \[4 marks\]
+
+I used knowledge from Week 1: Using Tidy Data to complete this part of the assignment.
+
+Then, we proceed as required by the question by excluding board games that have been released more than once.
+
+```{r}
+# To begin with, we will convert the board game category column from long to wide format.
+boardgames_1 <- boardgames_1 %>%
+  mutate(
+    # Create clean variable names for each game category
+    category_of_game = str_replace_all(category_of_game, " ", "_"),
+    category_of_game = str_to_lower(category_of_game)
+  ) %>%
+  pivot_wider(
+    # Each category becomes a new variable
+    names_from = category_of_game,
+    
+    # TRUE/FALSE values come from game_has_category
+    values_from = game_has_category,
+    
+    # If a game does not have a category, mark it as FALSE
+    values_fill = FALSE
+  )
+
+# Identify board games that appear more than once
+duplicate_games <- boardgames_1 %>%
+  count(name) %>%
+  filter(n > 1)
+
+# Remove all duplicated board game names
+boardgames_1 <- boardgames_1 %>%
+  filter(!name %in% duplicate_games$name)
+
+# Confirm no duplicated names remain
+boardgames_1 %>%
+  count(name) %>%
+  filter(n > 1)
+
+# Finally, we continue by examining the cleaned wide-format dataset.
+glimpse(boardgames_1)
+```
+
+Therefore, we have removed all released games under the same name. Now there are only unique board games left for the model.
+
+#### 3. Justify which variables are not appropriate to include in our model as predictors, and remove them from the dataset. \[3 mark\]
+
+To improve the quality and validity of the predictions this model generates several variables were removed from the data set that would otherwise be poor predictors. Id, name, and primary are all used as identifiers in the data set. They are not useful predictors because they don’t actually explain anything. Also, boardgame_rating and average_rating contain direct rating information, so they would allow the model to learn the actual ratings and thus suffer from data leakage. The rest of the variables are used as predictors within the model, and they explain the behavior of the variables of interest.
+
+```{r}
+# We begin by removing variables that are not appropriate to include in our model as predictors.
+boardgames <- boardgames_1 %>%
+  select(
+    -id,                 # Identifier variable with no predictive meaning
+    -name,               # Unique board game names
+    -primary,            # Similar to name and not useful for prediction
+    -boardgame_rating,   # Original text containing rating information
+    -average_rating,     # Directly used to create high_rating
+  )
+
+# Finally, we check the final cleaned dataset structure
+glimpse(boardgames)
+```
+
+To reduce the model complexity and to prevent data leakage, five predictor variables have been removed from the original data set. This data set is then suitable for predictive modeling tasks.
+
+## Part B: Pre-processing \[15 marks\]
+
+In this section, we will look at data splitting and preprocessing using TidyModels. Pre-processing is the generalised term for performing mathematical operations on your data before modelling it to improve the predictive power of the model.
+
+#### 1. Create a random split of the board games data and obtain the test and training sets. How many observations are in the training set and how many are in the testing set? Set a seed for reproducibility using set.seed(123). \[3 marks\]
+
+I used knowledge from Week 8: Classification Trees — Example — Building it Out to complete this part of the assignment.
+
+We proceed to create a randomly partitioned dataset of board games and obtain the training set and the test set.
+
+```{r}
+# Firstly, we load tidymodels for data splitting
+library(tidymodels)
+
+# Then, we set seed for reproducibility
+set.seed(123)
+
+# Next, we proceed to create a random split for the cleaned board game dataset.
+boardgame_split <- initial_split(
+  boardgames
+)
+boardgame_split
+# Then, we create the training and testing datasets
+boardgame_train <- training(boardgame_split)
+boardgame_test <- testing(boardgame_split)
+
+# Finally, we proceed to count the number of observations in the training and test sets.
+nrow(boardgame_train)
+nrow(boardgame_test)
+
+```
+
+Therefore, setting set.seed(123) for reproducibility on the previously cleaned board games data set, a random split was performed yielding 7527 observations, i.e. 5645 (training set) and 1882 (testing set). The training set will be used for building and testing all predictive models. The test set will be used for evaluating performance on previously unseen data.
+
+#### 2. Create a recipe based off our training data that will normalise numeric predictor(s) and convert all categorical variable(s) with more than two levels to dummy/indicator variables. Show the results of your recipe using prep(). \[5 marks\]
+
+I used knowledge from Week 7: Example — Resample — Build and Validate a Model to complete this part of the assignment.
+
+Firstly, we proceed to create a recipe based off our training data that will normalize numeric predictors and convert all categorical variables with more than two levels to dummy/indicator variables.
+
+We created a preprocessing recipe on the training data to prepare it for the models. For all the numeric predictor variables, I used centering and scaling to put all the continuous variables on a level playing field. I also created dummy (indicator) variables from all the categorical predictor variables with more than two levels.
+
+```{r}
+# First of all, we proceed to create a preprocessing procedure using the training data.
+boardgame_recipe <- recipe(high_rating ~ ., data = boardgame_train) %>%
+  
+  # Normalise all numeric predictor variables
+  step_normalize(all_numeric_predictors()) %>%
+  
+  # Convert categorical predictors into dummy variables
+  step_dummy(all_nominal_predictors(), one_hot = TRUE)
+
+# Then, we prepare the recipe using the training data
+boardgame_recipe_prep <- prep(boardgame_recipe)
+
+# Finally, we show the prepared recipe results
+boardgame_recipe_prep
+```
+
+Analyzing the output summary, we have the following information: - Outcome variable: high_rating - Predictor variables: 12 - Training observations: 5,645 - No incomplete rows detected - Normalised numeric predictors: year, playingtime, minage, and other numeric variables - Dummy variables created from categorical predictors: max_players.
+
+Therefore, we have managed to create a preprocessing recipe, based on a data frame of training data, normalizing numeric predictors and converting all categorical predictors to dummy variables to correctly setup the data for the various predictive models.
+
+#### 3. Use juice() and bake() to create pre-processed training and testing sets. Name your pre-processed training set boardgame_train_preproc, and your pre-processed test set boardgame_test_preproc. \[3 marks\]
+
+I used knowledge from Week 7: Example — Resample — Build and Validate a Model to complete this part of the assignment.
+
+To begin with, we use juice() and bake() to create pre-processed training and testing sets
+
+For more details, we can now use the juice() and bake() functions of the recipe to create the pre-processed data for our training and testing sets. The juice() function creates a pre-processed training set (with the trained recipe) and the bake() function applies the very same pre-processing steps to a test set.
+
+```{r}
+# Firstly, we create the pre-processed training dataset
+boardgame_train_preproc <- juice(boardgame_recipe_prep)
+
+# Then, we create the pre-processed testing dataset
+boardgame_test_preproc <- bake(
+  boardgame_recipe_prep,
+  new_data = boardgame_test
+)
+
+# Finally, we check the dimensions of the processed datasets
+dim(boardgame_train_preproc)
+dim(boardgame_test_preproc)
+```
+
+Therefore, the pre-processing recipe has been applied consistently to the training data and the evaluation data to test the models on.
+
+#### 4. Why is using a recipe preferred over cleaning the data using other methods? \[4 marks\]
+
+I used knowledge from Week 7: Example — Resample — Build and Validate a Model and Week 7: Overfitting and Cross-Validation to complete this part of the assignment.
+
+In a world where data cleaning is best left to automated processes, the use of a recipe() to preprocess a data set is preferred over manual cleaning. A recipe() contains all of the pre-processing steps in a single pipeline. For example, all of the numeric variables are normalized using means and standard deviations are calculated for the training set and then these values are used to normalize all of the corresponding variables in the test set using bake(). This ensures that no data is leaked from the training set to the test set and that all of the pre-processing steps are done in a completely consistent manner. These types of recipes are also very easy to incorporate into a TidyModels workflow where they can be very easily chained together to form a complete modeling pipeline. They also make it very easy to go back and re-use the various stages of a data set’s preprocessing in later modeling, resampling, and even model tuning endeavors. Recipes thus provide a very reproducible, pre-processing process.
+
+## Part C: Tune and fit 𝑘-nearest neighbours \[10 marks\]
+
+Now that the data has been pre-processed, we can move on with tuning and fitting a model. We will be looking at a 𝑘-nearest neighbours model. When considering a 𝑘-nearest neighbours model, we need to choose a suitable value for 𝑘.
+
+#### Create a model specification for a k-nearest neighbours model that predicts whether a board game has a high rating. Tune your k-nearest neighbours model by:
+
+-   Using 5-fold cross-validation to identify the optimal number of neighbours to use from the range k = {5,10,15,…,75}. Select the best 𝑘 based on accuracy. **\[8 marks\]**
+
+I used knowledge from Week 8: Nearest Neighbours and Week 7: Cross-Validation to complete this part of the assignment.
+
+This model is a k-nearest neighbours classification model trying to predict whether a board game is a high_rating game or not. The performance of kNN is influenced by the number of neighbours it uses for classification. For this reason 5-fold cross_validation was performed to find the best k from 5 to 75. The k with the highest accuracy was then used for this model.
+
+```{r}
+# To begin with, we proceed to load required packages for kNN modeling
+library(tidymodels)
+library(kknn)
+
+# Then, we set seed for reproducibility
+set.seed(123)
+
+# Next, we create 5-fold cross-validation using the pre-processed training data
+boardgame_cv <- vfold_cv(
+  boardgame_train_preproc,
+  v = 5,
+  strata = high_rating
+)
+
+# Then, we create a k-nearest neighbours model specification
+knn_spec <- nearest_neighbor(
+  neighbors = tune(),
+  mode = "classification"
+) %>%
+  set_engine("kknn")
+
+# Next, we create a workflow for the kNN model
+knn_workflow <- workflow() %>%
+  add_model(knn_spec) %>%
+  add_formula(high_rating ~ .)
+
+# Next, we create tuning grid for k values from 5 to 75
+k_grid <- tibble(
+  neighbors = seq(5, 75, by = 5)
+)
+
+# Next, we tune the kNN model using 5-fold cross-validation
+knn_tuned <- tune_grid(
+  knn_workflow,
+  resamples = boardgame_cv,
+  grid = k_grid,
+  metrics = metric_set(accuracy)
+)
+
+# Then, we display tuning results
+knn_results <- knn_tuned %>%
+  collect_metrics()
+
+knn_results
+
+# Next, we display the tuning results ordered by accuracy
+best_k <- knn_results %>%
+  arrange(desc(mean)) %>%
+  select(neighbors, mean) %>%
+  slice(1)
+
+# Finally, we display the optimal value of k and its accuracy
+best_k
+```
+
+Using 5-fold cross-validation, the classification accuracy for the k-nearest neighbours model was plotted against values of k from 5 up to 75 (in steps of 5). The accuracy improved through the middle range of values for k from 5 up to 35 and then declined through the higher values for k. The highest mean accuracy was for k=35 with an accuracy of 0.798 for that value of k through the tuning process.
+
+The optimal number of neighbors for the classification using the k-nearest neighbors model is therefore k = 35.
+
+-   Create a final version of your k- nearest neighbours model using the optimal 𝑘 you identified **\[2 marks\]**
+
+Following classification model was created using the best number of neighbors found above. This final model was then fitted using selection of the optimal value of k from the model tuning completed above, a final k-nearest neighbours the completed training data after all pre-processing of columns complete. The model can now be used for prediction
+
+```{r}
+# To begin with, we create the final kNN workflow using the optimal k
+final_knn_model <- finalize_workflow(
+  knn_workflow,
+  best_k
+)
+
+# Then, we fit the final kNN model using the pre-processed training data
+final_knn_fit <- fit(
+  final_knn_model,
+  data = boardgame_train_preproc
+)
+
+# Finally, we display the final fitted kNN model
+final_knn_fit
+```
+
+The fitted model output for the final workflow was created by tuning the k-nearest neighbours model for the formula high_rating. The response variable for this model was created as a nominal classification variable with two classes for the nominal classification problem of whether a board game falls into the high-rating category. The model’s optimal value of k was found to be 35 for this model’s misclassification rate of minimal value of approximately 0.208 or 20.8% misclassification during the training data’s assessment.
+
+The final K-Nearest Neighbors classification model was successfully trained with the optimal k value of 35. This value of k resulted in the highest classification accuracy from all of the tested candidate values of k throughout the cross-validation.
+
+HINT: Don’t forget to set your seed at the start of Part C!
+
+## Part D: Tune and fit a classification tree \[15 marks\]
+
+#### 1. Create a model specification for a classification tree that predicts whether a board game has a high rating. Tune your classification tree by:
+
+-   Using 5-fold cross-validation to identify the optimal cost complexity to use from a grid of 25 parameter values. **\[6 marks\]**
+
+I used knowledge from Week 8: Classification Trees and Week 7: Cross-Validation to complete this part of the assignment.
+
+For this task, a classification tree model is created to predict whether a game is classified as high_rating. In order to prevent overfitting by controlling the size and complexity of the tree, the cost complexity parameter is tuned. 5-fold cross-validation is used with 25 different values for the cost complexity parameter in a grid. The accuracy is then used to measure the quality of the model.
+
+```{r}
+# To begin with, we load required package for classification tree modelling
+library(tidymodels)
+
+# Next, we set seed for reproducibility
+set.seed(123)
+
+# Next, we create 5-fold cross-validation using the pre-processed training data
+boardgame_cv_tree <- vfold_cv(
+  boardgame_train_preproc,
+  v = 5,
+  strata = high_rating
+)
+
+# Then, we create a classification tree model specification
+tree_spec <- decision_tree(
+  mode = "classification",
+  cost_complexity = tune()
+) %>%
+  set_engine("rpart")
+
+# Next, we create workflow for the classification tree model
+tree_workflow <- workflow() %>%
+  add_model(tree_spec) %>%
+  add_formula(high_rating ~ .)
+
+# Next, we create a grid of 25 cost complexity values
+tree_grid <- grid_regular(
+  cost_complexity(),
+  levels = 25
+)
+
+# Then, we tune the classification tree using 5-fold cross-validation
+tree_tuned <- tune_grid(
+  tree_workflow,
+  resamples = boardgame_cv_tree,
+  grid = tree_grid,
+  metrics = metric_set(accuracy)
+)
+
+# Finally, we display tuning results
+tree_results <- tree_tuned %>%
+  collect_metrics()
+
+tree_results
+```
+
+During the process of tuning the classification tree model, 5-fold cross-validation was applied to all cost complexity values (25 in total) to check the accuracy of the classification for the given model. At very small values of cost complexity the accuracy of the classification reached 0.923 (or 92.3%). The accuracy of the classification decreased with the increase of the cost complexity, i.e. with the increase of the strength of the pruning of the classification tree. The highest value of the mean accuracy during cross-validation was reached at a cost complexity value of 5.623413 × 10⁻⁴ and was equal to 0.924 (or 92.4%).
+
+Therefore, the optimal cost complexity, for this model, will approximately equal 0.000562, since it is this value that had produced the best accuracy as monitored through 5-fold cross validation.
+
+-   Create a final version of your classification tree using the cost complexity you identified. **\[3 marks\]**
+
+I used knowledge from Week 8: Classification Trees — Example — Predicting to complete this part of the assignment.
+
+After best parameter in our workflow. We then fit this model to our pre-processed training data to prepare having found the best cost complexity value for tuning the model, we create a final classification tree using the it for predictions and evaluation in the following steps.
+
+```{r}
+# Firstly, we select the best cost complexity based on accuracy
+best_tree <- select_best(
+  tree_tuned,
+  metric = "accuracy"
+)
+
+# Next, we display the best cost complexity
+best_tree
+
+# Then, we create the final classification tree workflow
+final_tree_model <- finalize_workflow(
+  tree_workflow,
+  best_tree
+)
+
+# Next, we fit the final classification tree model to the training data
+final_tree_fit <- fit(
+  final_tree_model,
+  data = boardgame_train_preproc
+)
+
+# Finally, we display the final fitted classification tree model
+final_tree_fit
+```
+
+Looking at the fitted classification tree for the final model, high_rating, we can see that all remaining predictor variables were used to attempt to classify games as being in the high-rating category. The model was trained on 5,645 observations and used the full data as a classification problem. The tree shows that a number of predictor variables were used for splitting up the data as well as for making a classification decision. The variables used included rank, user_rated, owned, year and playingtime. The variable rank appeared most frequently near the top of the tree and so was one of the most influential variables in the model for classifying games as being in the high-rating category.
+
+The fitted tree model above illustrates the way a fitted tree model splits data into subsets as it goes down the tree, with each end of a split forming a terminal node of the model and corresponding to a classification performance and achieved an accuracy of approximately 0.924 when using the cost complexity parameter with the optimal of ‘yes’ or ‘no’. The classification tree model performed well when being tuned for its best.
+
+Therefore, the final classification tree model was created using the optimal value of the cost complexity parameter of the tree as found by cross-validation. This model is highly accurate and very interpretable. It will correctly classify many board games into the high-rating category.
+
+-   Select the best cost complexity based on accuracy. **\[2 marks\]**
+
+The results from the tuning were sorted by classification accuracy and the cost complexity value of the highest mean accuracy was selected as the best parameter for the optimal classification tree model.
+
+```{r}
+# To begin with, we select the best cost complexity based on accuracy
+best_tree <- tree_results %>%
+  arrange(desc(mean)) %>%
+  select(cost_complexity, mean) %>%
+  slice(1)
+
+# Finally, we display the best cost complexity and accuracy
+best_tree
+```
+
+Based on the tuning of parameters for a classification tree model, the cost complexity value of the model was found to be approximately equal to 0.000562. This cost complexity value yielded the highest mean classification accuracy of approximately equal to 0.924 during 5-fold cross-validation. As the cost complexity value is relatively small, the selected model is a moderately complex tree that avoids overfitting while maintaining high accuracy.
+
+Therefore, using parameter leads to the highest cross-validation accuracy of all 25 possible values for cost complexity that we tested a cost complexity of approximately 0.000562 we obtained the best classification tree model, as this.
+
+HINT: Don’t forget to set your seed at the start of Part D!
+
+#### 2. What does the cost complexity parameter do in a classification tree? \[4 marks\]
+
+The cost complexity parameter controls the size of a classification tree, i.e. it tries to prevent a tree from becoming too large by penalizing split. Each split in a classification tree will increase the depth of the tree by one and will introduce more detailed decision boundaries which enable the tree to fit the training data better and better. However, too many splits can easily lead to overfitting of the training data. The cost complexity parameter controls this aspect: a low value will allow very deep trees with many splits, which can have a very high training set accuracy, but which are not very good at predicting performance on new data. A high value will limit the tree’s depth and therefore number of splits, and as a result the tree will not learn to fit the training data so well. However, this will result in a tree with fewer leaves and less complexity that is easier to interpret and that has a higher accuracy on new data. Therefore, this single parameter determines a trade-off between predictive accuracy of a tree on its training set and the accuracy on new data and the tree’s complexity.
+
+## Part E: Compare the two models \[10 marks\]
+
+We will now evaluate how well our models predict outcomes on new data. This is vital when you have built a model, so that you can have an accurate understanding of how reliable your predictions will be.
+
+#### 1. Add a column of class predictions from your two finalised models to your test dataframe. \[2 marks\]
+
+The predictions from the two finalized models were generated for the pre-processed test data and any rows with missing values were removed prior to this. The predictions from the k-Nearest Neighbours model and the classification tree model were then added to the test data as new columns. This data can then be used for evaluation of the two models and for comparison between them.
+
+```{r}
+# To begin with, we remove any incomplete rows from the pre-processed test data
+boardgame_test_complete <- boardgame_test_preproc %>%
+  drop_na()
+
+# Then, we create class predictions from the final kNN model
+knn_class_preds <- predict(
+  final_knn_fit,
+  new_data = boardgame_test_complete,
+  type = "class"
+)
+
+# Next, we create class predictions from the final classification tree model
+tree_class_preds <- predict(
+  final_tree_fit,
+  new_data = boardgame_test_complete,
+  type = "class"
+)
+
+# Then, we add predictions from both models to the test dataframe
+boardgame_test_preds <- boardgame_test_complete %>%
+  bind_cols(
+    knn_prediction = knn_class_preds$.pred_class,
+    tree_prediction = tree_class_preds$.pred_class
+  )
+
+# Finally, we check the final prediction dataframe
+glimpse(boardgame_test_preds)
+```
+
+The output of the prediction dataset for the testing data frame was analyzed. The final testing data frame contains 1,881 observations and 19 variables. The preprocessed variables from the predictor variables (such as year, playingtime, minage, owned, rank, and user_rated) as well as the logical game categories and the dummy variables from max_players are included in the data frame. The response variable high_rating, which contains the actual classifications, was compared with the predicted classifications that were generated by the models.
+
+In addition, two new prediction variables were successfully added to the dataset:
+
+-   kNN_preprediction: predicted classes from the final k-Nearest Neighbours model
+-   tree_preprediction: predicted classes from the final classification tree model
+
+Both prediction columns for the individual games are classifications into yes or no for the model’s prediction of whether the game is from the high-rating category for that group of games.
+
+The class predictions from the k-Nearest Neighbours model and the classification tree model were added to the testing data set.
+
+#### 2. Compare the two methods in terms of the overall accuracy in the test set. By this metric, state whether KNN or the classification tree should be chosen and why. \[4 marks\]
+
+Here the overall accuracy of both the completed models, the k-Nearest Neighbors model and the completed classification tree model, on the test data set is calculated and compared.
+
+```{r}
+# Firstly, we calculate accuracy for the kNN model
+knn_accuracy <- boardgame_test_preds %>%
+  metrics(
+    truth = high_rating,
+    estimate = knn_prediction
+  )
+
+knn_accuracy
+
+# Then, we calculate accuracy for the classification tree model
+tree_accuracy <- boardgame_test_preds %>%
+  metrics(
+    truth = high_rating,
+    estimate = tree_prediction
+  )
+
+tree_accuracy
+```
+
+Here classification accuracy of approximately 0.802, or around 80.2% on the test set the results from the test set are shown for the k-Nearest Neighbours model. This model had a, and a corresponding Kappa statistic of approximately 0.596, thus indicating a moderate agreement above
+
+The classification tree model performed far better than the cluster based model with a classification accuracy of approximately 92.2% or 0.922 for the testing data. This model correctly classified approximately 92.2% of the testing observations. The related Kappa statistic of approximately 0.840 indicates a very high agreement between predicted class and actual class.
+
+Classification on the testing data. The classification tree model performed better than the k-nearest neighbors model on both Tree as opposed to k-Nearest Neighbours for the two methods tested on overall accuracy provided some clearer results accuracy and the Kappa statistic. Therefore it provided more accurate and reliable predictions on the data not used
+
+Based on the overall accuracy of classification for the test data set, it is suggested that the classification tree model out-performs the k-Nearest Neighbours model.
+
+#### 3. Create a ROC curve for both models on the same plot. Which model should be chosen for prediction and why? \[4 marks\]
+
+I used knowledge from Week 7: ROC Curves to complete this part of the assignment.
+
+The ROC curves for the completed k-Nearest Neighbours and classification tree models are plotted on the same graph below to provide a further means of evaluation and comparison. The ROC (Receiver Operating Characteristic) curve plots sensitivity against (1-specificity) for a range of thresholds to provide a measure of a classifier’s ability to distinguish between the yes and no cases in a data set. The curve for the model with the better classifier will plot closer to the top-left of the ROC graph.
+
+```{r fig-roc-comparison, fig.cap="ROC curves comparing the predictive performance of the k-Nearest Neighbours and Classification tree models"}
+# Firstly, we generate probability predictions from the final kNN model
+knn_prob_preds <- predict(
+  final_knn_fit,
+  new_data = boardgame_test_complete,
+  type = "prob"
+)
+
+# Then, we generate probability predictions from the final classification tree model
+tree_prob_preds <- predict(
+  final_tree_fit,
+  new_data = boardgame_test_complete,
+  type = "prob"
+)
+
+# Netx, we create dataframe for ROC analysis
+roc_data <- boardgame_test_complete %>%
+  select(high_rating) %>%
+  bind_cols(
+    knn_yes = knn_prob_preds$.pred_yes,
+    tree_yes = tree_prob_preds$.pred_yes
+  )
+
+# Next, we create ROC curve for the kNN model
+knn_roc <- roc_data %>%
+  roc_curve(
+    truth = high_rating,
+    knn_yes,
+    event_level = "second"
+  ) %>%
+  mutate(model = "kNN")
+
+# Then, we create ROC curve for the classification tree model
+tree_roc <- roc_data %>%
+  roc_curve(
+    truth = high_rating,
+    tree_yes,
+    event_level = "second"
+  ) %>%
+  mutate(model = "Classification Tree")
+
+# Next, we combine ROC results
+combined_roc <- bind_rows(knn_roc, tree_roc)
+
+# Finally, we plot the ROC curve using different colors
+ggplot(combined_roc,
+       aes(x = 1 - specificity,
+           y = sensitivity,
+           colour = model)) +
+  geom_path(size = 1.2) +
+  geom_abline(
+    linetype = "dashed",
+    colour = "black"
+  ) +
+  labs(
+    title = "ROC Curves for kNN and Classification Tree Models",
+    x = "1 - Specificity",
+    y = "Sensitivity",
+    colour = "Model"
+  ) +
+  theme_minimal()
+```
+
+From @fig-roc-comparison, the are above the diagonal reference line. However, the ROC curve of the classification tree model is always closer ROC curves of model kNN and model classification tree are clearly better than a random guess and both curves to the top left corner of the graph than the kNN model. Therefore the classification tree model gets a better trade-off between the sensitivity and the specificity of the model for all possible decision thresholds.
+
+The ROC curve for classification tree model increases very rapidly on the left side of the plot. Thus, it correctly classifies a large proportion of real positive cases and keeps the false positive rate at a relatively low level. Although kNN also performs very well, its ROC curve remains below the curve for classification tree model for most of threshold values. This means that classification tree model performs better than kNN model for classification purpose.
+
+From the ROC curve graphs above, we can see that the classification tree model is better than the k-Nearest Neighbours model in terms of the model’s ability to distinguish between correct and incorrect classifications. The classification tree model therefore would be the better model to use for prediction purposes.
+
+## Executive Summary:
+
+In this study we tried to use some practical characteristics of board games to classify them into the high_rating category using machine learning. For this purpose we created a modified version of the BoardGameGeek dataset, a training dataset and a testing dataset of observations. All numeric predictors in the dataset provided to the participants of the Tidy Tuesday project were normalized. After cleaning and preprocessing the data created by the participants dummy variables for the categorical predictors were created using the TidyModels framework. Two models were created: a k-validation to search for the optimal parameters for both models, and the best models on the testing data: a k-Nearest Neighbors (kNN) model and a classification tree model. 5-fold cross validation was used. The accuracy of the kNN model is approximately 80.2% on the testing data, whereas the accuracy of the classification tree model is approximately 92.2%. From @fig-roc-comparison, the ROC curves for both models are also shown. The classification tree model clearly outperforms the kNN model in terms of better sensitivity and specificity. In addition to better accuracy the classification tree model also has the advantage of clear and interpretable decision rules for the predictors of high-rated board games. Therefore it is possible to use machine learning models to predict the rating of board games, and the classification tree model is the best model in this study.
+
+## Methods:
+
+**A. Data Cleaning:**
+
+The first step of the analysis involved clearing up the board games data set and reformatting it so it could be used for the analysis. The first step of reformatting the data set involved the creation of a response variable. After this the data set was restructured to suit the rest of the analysis. There were also a number of other changes made to the data, including the removal of any duplicated observations and the removal of a number of variables that were not suitable for the analysis.
+
+A new binary categorical variable high_rating was created to determine if a board game received a high user rating. The average boardgame_rating for each game was determined by averaging the rating in the boardgame_rating text variable. For each game, if the average rating was 6.5 or higher then the game was classified as ‘yes’ high_rating otherwise the game was classified as ‘no’ high_rating. The high_rating variable was then converted to a factor for modeling with classification algorithms. Two new variables, rank and user_rated, were also created by extracting the relevant information from the rating text. These new variables will be used as numerical predictors in subsequent modeling attempts.
+
+In the original form of the data set the board game categories were stored in long format, i.e. each single board game was entered in several rows, containing all of its corresponding categories. To be able to use the data set in the following analysis, I transformed the data set into wide format by using the function pivot_wider() in order to generate adequate logical predictor variables, like for example territory_building, party_game, fantasy or childrens_game for all categories. After this transformation of the data set I deleted duplicate entries of single board games, which where named exactly the same, in order to keep just single entries of every single board game in the data set.
+
+In addition to the items already mentioned there were several additional items that were not to be used as predictors for the classification models. The variables id, name, and primary were used as identifiers for the records in the data set, but added no value to explanation of a set of events. The variables boardgame_rating and average_rating contained direct rating information which were used to generate the response variable high_rating. Including these variables in the set of predictor variables would result in data leakage and thus artificially increased the models’ performance. After completion of all the data cleaning steps the end result was a data set consisting of 13 variables and 7,527 records that were used for the predictive analysis.
+
+**B. Pre-processing:**
+
+Following the data cleaning step, we then in the data preprocessing step applied a number of transformations to the existing data using the TidyModels package. The purpose of the data preprocessing step is to transform and to normalize the data in such a way that it can efficiently be used for learning by a number of different machine learning models. This particularly applies to the numerical features as well as to the categorical features, which were then transformed in a suitable manner for the learning task.
+
+We used the initial_split() function of the package to split the already cleaned data set into a training set and test set. In order to split the data in a reproducible way, we specified the seed value 123 when splitting the data. This split resulted in a training set of 5,645 cases and a test set of 1,882 cases. We used the training set for tuning the model parameters and the test set to assess the quality of the predictions made with the models on new data.
+
+During training a so-called preprocessing recipe for the training data has been generated. Numerical predictor variables of the training data have been centered and scaled (normalized). For distance-based models like the k-nearest neighbors algorithm, all numerical predictor variables have to be treated equally. Large scale of variables would otherwise have an excessive impact on the computed distances. Categorical variables with more than 2 categories have been converted to so-called dummy variables or indicator variables in order to enable correct calculation of the model.
+
+This recipe generates one output, high_rating, from 12 input variables. There are no missing values in the training data set. Numerical input variables, like year, playingtime and minage, have been normalized. Categorical input variables, like max_players, have been transformed into dummy variables.
+
+In applying the recipe to the train and test data I then used the juice() and bake() functions to produce the completely pre-processed data. The juice() function had completed the full processing of the train data and the bake() function then applied the same sequence of processing steps to the test data. There were 5,645 observations in the resulting pre-processed train data set with 17 variables. There were 1,882 observations in the pre-processed test data with 17 variables.
+
+We also use recipe() for our manual preprocessing within the TidyModels framework. The recipe has the advantage that all steps of the preprocessing are stored in one reproducible recipe. In contrast to the manual preprocessing the means and standard deviations etc. are estimated from the training data only and then applied to the test data. So no information of the test data is used for the preprocessing step. Also recipes very smooth integrate with resampling, tuning and modeling. So we can build very easy and consistent and reproducible machine learning workflows.
+
+## Results:
+
+**C: Tune and Fit k-Nearest Neighbours**
+
+This classification is implemented after the preprocessing step in the high_rating category with a k-nearest neighbours (kNN) classification model. The goal of this model is to predict whether a new game will receive a high rating in a similar way as already done for the categorization of the games into a certain category. Games with similar characteristics (e.g. number of players, complexity, …) are grouped together in order to better predict the high_rating for a new game.
+
+The performance of the kNN model is greatly affected by the number of neighbors that are used for a prediction. So 5-fold cross-validation was used to test the model for different numbers of neighbors (k) between 5 and 75. The best results were achieved for k = 35 with an average accuracy of about 0.798. Thus it is better to take more games into account for a prediction with a kNN model, as long as they are as similar to the game in question as possible than to only take a few neighboring games into account.
+
+The final fitted kNN model was developed using the optimal k value of 35 with the model’s minimum misclassification error of approximately 20.8%. The kNN model effectively related games of similar attributes to users’ ratings of those games. Games were categorized by their most prominent genres of gameplay and by users’ ratings of individual games. Using these categorizations, the model could provide good results at classifying unknown games that users would rate highly and those that users would rate poorly.
+
+**D: Tune and Fit a Classification Tree**
+
+An alternative model for the high_rating category of board games is the classification tree model. A classification tree model attempts to classify cases into categories. The data is split into smaller subsets based on variables which are most descriptive of the outcomes of the model. I created a classification tree model and used 5-fold cross-validation to test 25 different cost complexity values for the model to try and optimize it. The model performed better with smaller cost complexity values. At larger cost complexity values, the model would over simplify the tree through excessive pruning.
+
+The highest classification accuracy was found to be around 0.924 during cross-validation using a cost complexity of approximately 0.000562 (moderately complex tree that fully uses the information in the data without overfitting). The final classification tree model was therefore fitted using the following variables in order to classify whether a board game is a high-rater: rank, user_rated, owned, year, playingtime. The fitted tree shown on the right includes the most influential variables for a board game to be classified as a high-rater. Note that the variable rank frequently appears near the root of the tree indicating its strong influence within the classification.
+
+One that I fitted is the decision tree which provides a very interpretable set of decision rules for classifying each board game into a yes or no category. From a practical point of view this model is not only good at making predictions on how highly rated a game will be but also good at giving insight into the common characteristics of highly rated games. The cost complexity parameter also played a large role in this model as I had controlled the depth of the tree in order to produce a model that balanced predictive performance terms.
+
+**E: Model Comparison**
+
+In order to compare the two models on a test data set, I added the k-Nearest Neighbors classification as well as the classification tree classification to the test data set. The test data set with the added class predictions then contained the class predictions of both models against the high_rating variable that they were trying to predict. This test data set then contained 1,881 records and all of the original variables as well as the two class predictions per record from the two finalized models.
+
+In order to test both models for their predictive ability the models were used for classification within the test data set. The accuracy of classification of the k-Nearest Neighbors model was found to be around 80.2% or 0.802. This means that the model was able to correctly classify approximately 80.2% of the board games within the test data set. The Kappa statistic for the k-Nearest Neighbors model was found to be approximately 0.596. This indicates that there is moderate agreement between predicted categories and actual categories for this model. However, the accuracy of classification of the classification tree model was found to be around 92.2% or 0.922. This means that the model was able to correctly classify approximately 92.2% of the board games within the test data set. In addition the Kappa statistic for the classification tree model was found to be approximately 0.840. This indicates that there is a large number of very accurate predictions within the model and that it is performing well in its ability to generalize to previously unseen data.
+
+From @fig-roc-comparison, by drawing the ROC curves for the two models on the same graph, it was also possible to compare them. ROC graphs are used in case-control studies for classification purposes in order to test how well a model is able to perform better than random classification. Both the classification tree model and the k-Nearest Neighbors model performed better than random classification. The ROC graph for the classification tree model was closer to the top left-hand side of the graph than that for the k-nearest neighbors model, thus the classification tree model had the best trade-off between sensitivity and specificity for all possible classification thresholds.
+
+From a practical point of view the classification tree model clearly outperforms the k-Nearest Neighbors model when it comes to representing the board game data set. This model is able to distinguish between highly rated games and low rated games in a very adequate way. Relevant gameplay characteristics as well as characteristics with respect to the popularity of games are used in order to accurately determine a game’s rating. The classification tree model has a high quality of prediction. In addition to that the generated classification tree is easily interpretable. The decision rules that are generated by the decision tree allow for sufficient insight in the predictions made by the model. Based on the previously described accuracy measures as well as the ROC curves it can be concluded that for the high_rating category the classification tree model is the best model out of the three tested models.
+
+## Discussion:
+
+This study found that by using machine learning it was possible to predict whether or not a board game is a high_rating game using a number of measures relating to the gameplay, the game’s popularity, and the game’s category. Both the kNN model and the classification tree model were found to be capable of classifying new unseen board games and to be performing better than a simple model that was randomly guessing whether or not a game belonged to the high_rating category. However, the classification tree model performed better than the kNN model in terms of both classification accuracy and the ROC curves, from @fig-roc-comparison. The classification tree model was found to have an average accuracy of approximately equal to 92.2% on the testing data. The kNN model was found to have an average accuracy of approximately 80.2% on the testing data. Thus the classification tree model was found to be better at learning relationships in the data and at using this learning to make accurate predictions on new unseen data.
+
+One advantage of the classification tree model is its interpretability. Unlike the kNN model, in which an rules that describe how the model arrived at a prediction. In this case, variables such as a game observation is classified based on its similarity to neighboring observations, the classification tree model generates a set of decision’s rank, user_rated, whether owned, and playingtime appeared frequently throughout the tree, indicating that popularity and player engagement are key indicators of highly rated board games. Thus, games that stimulate strong community engagement and have high rankings will generally receive consistently high ratings from users.
+
+**Limitations**
+
+There are some important limitations to note even though the analysis is performing very well. The ratings in this dataset are based off of the opinions and experiences of users from BoardGameGeek.com. This means that the highly rated games are going to be games that are highly rated by the community of users on this website and not necessarily by all board game players. The analysis looked at only a small subset of the variables that might be relevant for both the gameplay and popularity of a board game. For example, the artwork of the game, the publisher, the mechanics of the game, how complex it is, the price of the game, the amount of marketing of the game and so on. All of these variables could affect whether or not a game receives high ratings.
+
+Historical data trained in models could be influenced by future changes in the player preferences or board games trends. The kNN model required a lot of preprocessing work and the model became extremely slow with increasing amount of features. The classification tree model worked extremely well for me, however decision trees are well known to be prone to overfitting. Models of higher complexity such as random forests or gradient boosting trees might even perform better.
+
+Our results show that the classification tree is an extremely effective and even understandable model to predict highly rated board games. This study gives insight into preprocessing, model tuning and comparing models in general for very powerful predictive models using machine learning.
+
+## Conclusions:
+
+This paper describes a study to create models to predict if a board game is classified into the high_rating category using a set of gameplay characteristics, popularity measures and board game categories extracted from BoardGameGeek dataset. The two approaches, k-Nearest Neighbors and classification trees, were experimented using data cleaning, data preprocessing, model selection and model evaluation. Both approaches created models that predicted accurately which games were highly rated, but the classification tree approach was significantly better at rating game predictions than the kNN approach using a variety of different metrics including testing accuracy and the area under the ROC curve, from @fig-roc-comparison. In addition to higher accuracy, the classification trees also provided more meaningful decision trees or rules that explained the predictions made by the model in greater detail and showed which characteristics of a game had the greatest influence towards games receiving high ratings. This study demonstrates the use of predictive machine learning for board games and showed the classification trees approach to be the best method to use for this data set.
+
+### Statistical Appendix:
+
+#### 1. Model and Methodology:
+
+#### 1.1 k-Nearest Neighbours (kNN) Model:
+
+I used knowledge from Week 8: Nearest Neighbours to complete this part of the assignment.
+
+The k-Nearest Neighbours (kNN) model classifies observations based on the majority class among the (k) nearest neighbouring observations.
+
+The distance between observations is calculated as:
+
+$$
+d_i = ||x_i - x_0||
+$$
+
+The probability that a new observation belongs to class (j) is:
+
+$$
+Pr(Y_0=j|x_0)=\frac{1}{k}\sum_{i \in N_k(x_0)} I(y_i=j)
+$$
+
+where:
+
+$$
+I(y_i=j)=
+\begin{cases}
+1 & \text{if } y_i=j \\
+0 & \text{otherwise}
+\end{cases}
+$$
+
+The predicted class is:
+
+$$
+\hat{y}_0=\arg\max_j Pr(Y_0=j|x_0)
+$$
+
+#### 1.2 Classification Tree Model:
+
+I used knowledge from Week 8: Classification Trees to complete this part of the assignment.
+
+A classification tree model partitions the space of predictor values into a number of subsets of predictor values, in each of the subsets a constant classification is produced by the model, the partitions are produced by a number of decision rules, each rule being a function of one or more of the predictor variables.
+
+The classification tree minimizes impurity using the Gini Index:
+
+$$
+Gini = 1 - \sum_{i=1}^{C} p_i^2
+$$
+
+where:
+
+-   (p_i) is the proportion of observations in class (i)
+-   \(C\) is the total number of classes
+
+The complexity of the tree is controlled using the cost complexity parameter:
+
+$$
+R_\alpha(T)=R(T)+\alpha|T|
+$$
+
+where:
+
+-   (R(T)) is the misclassification error
+-   (\|T\|) is the number of terminal nodes
+-   (\alpha) is the cost complexity parameter
+
+The optimal cost complexity parameter was selected using 5-fold cross-validation based on classification accuracy.
+
+#### 2. Model Evaluation Metrics:
+
+#### 2.1 Classification Accuracy:
+
+I used knowledge from Week 7: Confusion Matrix to complete this part of the assignment.
+
+Classification accuracy was used as the primary metric to evaluate model performance.
+
+The accuracy formula is:
+
+$$
+Accuracy=\frac{TP+TN}{TP+TN+FP+FN}
+$$
+
+where:
+
+-   (TP) = True Positives
+-   (TN) = True Negatives
+-   (FP) = False Positives
+-   (FN) = False Negatives
+
+Higher accuracy values indicate better classification performance.
+
+#### 2.2 ROC Curve:
+
+The Receiver Operating Characteristic (ROC) curve was used to evaluate the classification performance of the models across different probability thresholds.
+
+The ROC curve plots sensitivity against \$1-\\text{specificity}\$.
+
+Sensitivity is calculated as:
+
+$$
+Sensitivity=\frac{TP}{TP+FN}
+$$
+
+Specificity is calculated as:
+
+$$
+Specificity=\frac{TN}{TN+FP}
+$$
+
+Therefore:
+
+$$
+1-\text{Specificity}=\frac{FP}{TN+FP}
+$$
+
+A model with a ROC curve closer to the top-left corner indicates stronger classification performance.
+
+#### 3. Detailed Statistical Results:
+
+#### 3.1 kNN Cross-Validation Results:
+
+The k-Nearest Neighbours (kNN) model was tuned using 5-fold cross-validation across values of (k) ranging from 5 to 75.
+
+The cross-validation results are summarised below.
+
+| Number of Neighbours ((k)) | Mean Accuracy | Standard Error |
+|----------------------------|---------------|----------------|
+| 5                          | 0.781         | 0.005          |
+| 10                         | 0.791         | 0.006          |
+| 15                         | 0.793         | 0.005          |
+| 20                         | 0.794         | 0.006          |
+| 25                         | 0.796         | 0.006          |
+| 30                         | 0.798         | 0.005          |
+| 35                         | 0.798         | 0.005          |
+| 40                         | 0.796         | 0.005          |
+| 45                         | 0.795         | 0.006          |
+| 50                         | 0.796         | 0.006          |
+| 55                         | 0.796         | 0.006          |
+| 60                         | 0.794         | 0.005          |
+| 65                         | 0.794         | 0.005          |
+| 70                         | 0.793         | 0.005          |
+| 75                         | 0.793         | 0.004          |
+
+Cross-validation of the kNN model’s classification accuracy increases with (k) from 5 up to about 30-35 neighbors, after which prediction quality remains constant or even decreases for larger (k).
+
+The highest mean classification accuracy was achieved at:
+
+$$
+k = 35
+$$
+
+with a mean accuracy of approximately:
+
+$$
+Accuracy = 0.798
+$$
+
+For the final kNN model the optimal number of neighbors to use would be k = 35, because this number gave the highest cross validation accuracy and, on average, the smallest standard error of the estimate.
+
+#### 3.2 Classification Tree Cross-Validation Results:
+
+The classification tree model was tuned using 5-fold cross-validation across 25 different values of the cost complexity parameter.
+
+Cross-validation results for the classification tree model in the first plot indicate that it has very high accuracy for small values of the cost complexity parameter. In contrast, as the cost complexity parameter is increased, the accuracy of the classification decreases due to stronger pruning of the classification tree.
+
+The highest mean classification accuracy was achieved at:
+
+$$
+cp = 5.62 \times 10^{-4}
+$$
+
+with a mean accuracy of approximately:
+
+$$
+Accuracy = 0.924
+$$
+
+Therefore, the optimal cost complexity value selected for the final classification tree model was:
+
+$$
+cp = 0.000562
+$$
+
+since this value produced the highest cross-validation accuracy while maintaining a relatively small standard error.
+
+#### 3.3 Final Model Accuracy Comparison:
+
+The predictive performance of the final k-Nearest Neighbours model and the final classification tree model was evaluated using the testing dataset.
+
+The overall classification accuracy and Kappa statistics are summarised below.
+
+| Model                      | Accuracy | Kappa |
+|----------------------------|----------|-------|
+| k-Nearest Neighbours (kNN) | 0.802    | 0.596 |
+| Classification Tree        | 0.922    | 0.840 |
+
+The final kNN model achieved a testing accuracy of approximately:
+
+$$
+Accuracy = 0.802
+$$
+
+with a Kappa statistic of:
+
+$$
+\kappa = 0.596
+$$
+
+This indicates a moderate level of agreement between the predicted and actual classifications.
+
+The classification tree model achieved substantially higher predictive performance, with a testing accuracy of approximately:
+
+$$
+Accuracy = 0.922
+$$
+
+and a Kappa statistic of:
+
+$$
+\kappa = 0.840
+$$
+
+indicating a very strong level of agreement beyond chance.
+
+Using the classification accuracy and Kappa statistics, the classification tree model was found to be far superior to the kNN model and hence preferred for the prediction of highly rated board games.
+
+#### 3.4 ROC Curve Interpretation:
+
+The ROC curve for the classification tree model remained consistently closer to the top-left corner of the graph compared with the kNN model.
+
+This indicates that the classification tree achieved:
+
+-    higher sensitivity
+
+-    lower false positive rate
+
+-    better overall classification performance
+
+Therefore, the classification tree model was selected as the preferred predictive model.
+
+#### 4. Data Processing and Preprocessing:
+
+The following preprocessing procedures were applied before model development:
+
+-    Extraction of numerical variables from text variables
+
+-    Removal of duplicated board games
+
+-    Removal of variables causing data leakage
+
+-    Normalization of numeric predictors
+
+-    Dummy variable encoding for categorical predictors
+
+-    Training/testing data splitting
+
+The preprocessing workflow was implemented using the `recipe()` framework from TidyModels to ensure reproducibility and prevent data leakage.
+
+## Backward selection: TO COMPLETE!
+
+I used knowledge from Week 6: Practice Using ANCOVA to complete this part of the assignment.
+
+For high_rating games, backward selection of predictors in combination with a logistic regression model is used to select the most relevant variables as predictors. A full model is created that contains all relevant variables. An Anova() function test is then conducted to analyze all the individual predictors and to determine which one to delete first. Variables with the largest p-values that are not statistically significant are deleted one at a time until all the remaining predictors are statistically significant.
+
+The three identifier variables id, name and primary were dropped as they added no value to the model’s classification of board games. Including them would have increased the model’s huge already and caused it to overfit the data perfectly (overfitting). The boardgame_rating variable was also dropped as all the rating information was in text format i.e. game rank, average rating on a scale from 1-5 given by users and number of users who gave a rating for the game. The average_rating variable was the most critical to drop as it was used to create the response variable high_rating. Including average_rating in the model would cause severe data leakage as the model would know the correct classification for the cases in the training data set. The variables were dropped to reduce model complexity, to prevent overfitting and data leakage. The model now has to learn relationships between input variables and the output variable based on the characteristics of the board games.
+
+```{r}
+# Load required package
+library(car)
+
+# First, we remove variables that are not suitable predictors
+boardgames_model <- boardgames_1 %>%
+  select(
+    -id,
+    -name,
+    -primary,
+    -boardgame_rating,
+    -average_rating
+  )
+
+# Then, we fit the logistic regression model
+boardgame_model1 <- glm(
+  high_rating ~ .,
+  
+  data = boardgames_model,
+  
+  family = "binomial"
+)
+
+# Finally, we examine the significance
+# of each predictor variable
+Anova(boardgame_model1)
+```
+
+To perform backward selection, we start with a model that includes all the predictor variables, and then iteratively remove the least significant variables. The table below shows the summary output of the model for the high_rating category with all predictor variables included. From this table, we can see that not all of the variables were found to be statistically significant. Those that were not included in the model for high_rating are territory_building, abstract_strategy, year, and party_game. The largest p-value is for territory_building, 0.9297, so it is removed from the model first.
+
+```{r}
+# Refit the model after removing territory_building
+boardgame_model2 <- glm(
+  high_rating ~ year + playingtime + minage +
+    owned + max_players + rank +
+    user_rated + party_game +
+    fantasy + abstract_strategy +
+    childrens_game,
+  
+  data = boardgames_model,
+  
+  family = "binomial"
+)
+
+# Examine predictor significance again
+Anova(boardgame_model2)
+```
+
+The updated backward selection model contained a few more predictors that where not statistically significant at the 0.05 level (i.e. their p-values where greater than 0.05). The predictor with the largest p-value was abstract_strategy (p = 0.76485). So we removed this from the model and refitted the logistic regression model.
+
+```{r}
+# Refit the model after removing abstract_strategy
+boardgame_model3 <- glm(
+  high_rating ~ year + playingtime + minage +
+    owned + max_players + rank +
+    user_rated + party_game +
+    fantasy + childrens_game,
+  
+  data = boardgames_model,
+  
+  family = "binomial"
+)
+
+# Examine predictor significance again
+Anova(boardgame_model3)
+```
+
+The updated backward selection model has now been filtered to show that variable year was found to be not statistically significant with a p-value greater than 0.05 (p = 0.49237). This variable has now been removed from the model and the model refitted.
+
+```{r}
+# Refit the model after removing year
+boardgame_model4 <- glm(
+  high_rating ~ playingtime + minage +
+    owned + max_players + rank +
+    user_rated + party_game +
+    fantasy + childrens_game,
+  
+  data = boardgames_model,
+  
+  family = "binomial"
+)
+
+# Examine predictor significance again
+Anova(boardgame_model4)
+```
+
+The updated backward selection model includes all of the variables from the previous model, except for the fact that party_game is not statistically significant. Its p-value is greater than 0.05 (p = 0.07296). In essence, whether or not a board game is a party game does not add any predictive power to the model for the high_rating category after the other variables have been taken into account. Thus, party_game was removed from the logistic regression model and the model refitted.
+
+```{r}
+# Refit the model after removing party_game
+boardgame_model5 <- glm(
+  high_rating ~ playingtime + minage +
+    owned + max_players + rank +
+    user_rated + fantasy +
+    childrens_game,
+  
+  data = boardgames_model,
+  
+  family = "binomial"
+)
+
+# Examine predictor significance again
+Anova(boardgame_model5)
+```
+
+The backward selection process was applied to remove all non-significant variables from the full model. The resulting logistic regression model contains only the significant variables from the full model. All the remaining variables in the model have p-values less than 0.05 and are thus significant in predicting high_rating for board games. The resulting model for classifying board games into the various categories of this study includes the following variables: playingtime, minage, owned, max_players, rank, user_rated, fantasy, and childrens_game. The backward selection process resulted in a simple model which contains the most important variables for the classification of board games.
+
+In the end, the data set with 18 variables was reduced for modeling reasons to the 5 id, name, primary, boardgame_rating and average_rating variables that are not suitable as predictor variables. The id, name and primary variables are identifier variables that add no value to the model and thus increase the model’s complexity. The boardgame_rating and average_rating variables directly contain the rating information and thus the average_rating variable is used directly for the creation of the response variable high_rating high. Including these variables in the modeling process would lead to severe data leakage and thus to an over-estimation of the models’ performance. All other variables have been added to the data set so that in a backward selection process using Anova() the relevant predictor variables can be determined objectively.
