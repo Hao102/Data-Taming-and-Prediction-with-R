@@ -1,0 +1,899 @@
+---
+title: 'Data Taming and Prediction: Assignment 1'
+subtitle: 'Tutor: Miss Kalale Shrinivas Ksheeraja; Class: 27914; Course Coordinator: Dr Nicholas Fewster-Young'
+author: 'Tran Huu Hao Nguyen (student ID: a1906373)'
+date: '23 March 2026'
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r}
+library("tidyverse")
+library("tinytex")
+tinytex::install_tinytex(force = TRUE)
+#tinytex::tlmgr("--repository http://www.preining.info/tlgpg/ install tlgpg")
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Due date: 23rd March 10am 2026
+
+In this assignment, we will begin an analysis of a dataset describing board games.
+
+This data was originally downloaded from a data project called Tidy Tuesday (\url{https://github.com/rfordatascience/tidytuesday/tree/master/data/2022/2022-01-25}) but has been modified for the purposes of this assessment.
+
+We will analyse properties and ratings (from board game geek) of $7,703$ board games.
+
+Some rules about your submissions:
+
+-   **You must complete this assignment using Quarto R Markdown**;
+-   Your assignment must both be submitted as **pdf and QMD files** on MyUni Canvas Course Page;
+-   Include any working when providing solutions;
+-   Provide all numerical answers to **3 decimal places**;
+-   Make sure you include both your **code and R output / plots in your answers**;
+-   You can submit more than once if you find errors and your latest submission will be marked;
+-   Make sure you only upload both documents for your final submission. If you submit multiple pages (i.e. one per question) you will be deducted 10% per page submitted;
+-   Penalties for late submission - within 24 hours no marks will be lost. After 24 hours, assignment is not marked and you get zero; and
+-   Finally, make sure you check your submitted assignment is the correct one, as we cannot accept other submissions after the due date.
+
+## Part 1 of the Assignment
+
+## Question 1 - Revision
+
+**\[15 marks\]**
+
+### (a) Variable types
+
+This question should be typed here.
+
+For each of the following state whether the variable is categorical nominal, categorical ordinal, quantitative discrete, or quantitative continuous.
+
+i\. The height of the players on the Adelaide Crows football team. \[1 mark\]
+
+-> The height of the players on the Adelaide Crows football team is a quantitative continuous variable.
+
+ii\. Breed of cat entered in the competitions at the Royal Adelaide Show. \[1 mark\] 
+
+-> Breed of cat entered in the competitions at the Royal Adelaide Show is a categorical nominal variable.
+
+iii\. The colour of cars in the line at a McDonalds drive-through recorded as red = 1, blue= 2, white = 3, grey = 4, black = 5, other = 6. \[1 mark\] 
+
+-> The color of cars in the line at a McDonalds drive-through recorded as red = 1, blue= 2, white = 3, gray = 4, black = 5, other = 6 is a categorical nominal variable.
+
+iv\. The total number of students in attendance at each lecture across the Adelaide University campus. \[1 mark\]
+
+-> The total number of students in attendance at each lecture across the Adelaide University campus is a quantitative discrete variable.
+
+v\. The weight of coffee beans a cafe uses on each morning, recorded in kilogram units. \[1 mark\]
+
+-> The weight of coffee beans a cafe uses on each morning, recorded in kilogram units is a quantitative continuous variable.
+
+vi\. Grades recorded for assessments at the University of Adelaide (High distinction, Distinction, Credit, Pass, Fail) \[1 mark\]
+
+-> Grades recorded for assessments at the University of Adelaide (High distinction, Distinction, Credit, Pass, Fail) are categorical ordinal variables.
+
+TOTAL: \[6 marks\]
+
+### (b) Using data in R
+
+You must include your code and output for ALL of your below solutions.
+
+The trees dataset, already inbuilt into R, provides the measurements of felled black cherry trees.
+
+i\. Load the dataset into R. \[1 mark\]
+
+```{r}
+data("trees")
+trees
+```
+
+Firstly, we load the dataset.
+
+ii\. What are the subjects in this dataset? How many subjects are there? \[1 mark\]
+
+```{r}
+nrow(trees)
+
+```
+We can see that the subjects are felled black cherry trees. In addition, there are 31 trees in the dataset.
+
+iii\. How many variables are in the dataset? What are the variables? \[1 mark\]
+
+```{r}
+ncol(trees)
+names(trees)
+```
+
+We see that there are 3 variables in the dataset. In addition, they include: Girth, Height, and Volume.
+
+
+iv\. Show the third column from this dataset. \[1 mark\]
+
+```{r}
+trees[, 3]
+```
+We can see that the third column is Volume.
+
+v\. Provide the information for the second tree. \[1 mark\]
+
+```{r}
+trees[2,]
+```
+
+We can see that the girth of tree number 2 is 8.6, the height is 65, and the volume is 10.3.
+
+vi\. What is the Height of the fifteenth tree? \[1 mark\]
+
+```{r}
+trees[15, "Height"]
+```
+We can see that the height of the fifteenth tree is 75.
+
+vii\. What is the Height and Volume of tree number 22? Do not include the Girth in your output or answer. \[1 mark\]
+
+```{r}
+trees[22, c("Height", "Volume")]
+```
+
+We can see that the height of tree number 22 is 80 and the volume is 31.7.
+
+viii\. What does the girth variable represent? Hint: You will need to use the help function to answer this question - do not try to guess! \[1 mark\]
+
+```{r}
+?trees
+```
+
+After coding the above line, we can see that the girth variable represents the diameter of the tree in inches, measured at a height of 4 ft 6 in above the ground.
+
+Total: \[9 marks\]
+
+## Question 2: Data Reading and Cleaning
+
+**\[Total: 35 marks\]**
+
+Load the data contained in ashes_2019.csv into R.
+
+Each row represents one cricketer who participated in the 2019 Men’s Ashes, held in England. A summary of the variables as represented in the csv file are below.
+
+| Variable | Description |
+|------------------------------------|:----------------------------------:|
+| `batter` | The surname of the batter, with preceding first team initial if two players have the same surname |
+| `team` | Country the player represents—either Australia or England |
+| `role` | Position in the team—either batter, bowler, wicketkeeper or all-rounder |
+| `Test: (i) ; Innings (j)` | Player’s batting performance in the 𝑗𝑡ℎ innings of the 𝑖𝑡ℎ Test match, in sentence form |
+|  |  |
+
+Note that each player may bat in two ‘innings’ of each Test match, and there were five Test matches, so there are 13 columns in total - batter, team, role and one for each of the ten possible occasions each player could have batted.
+
+
+*** First of all, we will load the data ashes_2019.csv provided by the question and the necessary library for this part.
+
+
+```{r}
+library(stringr)
+library(forcats)
+
+ashes <- read_csv("ashes.csv")
+ashes
+```
+
+Therefore, after loading the data, we see that the data includes 27 cricket players and 13 variables, including information about the players and the results of each inning.
+
+### Part (a)
+
+For our analysis, the subjects are not the cricketers themselves, but each batting innings they participated in. In order to make the data tidy:
+
+\(i\) Each subject needs its own row. Rearrange the data into a long format so that there is a row for each batter in each innings. Your new tibble should have 310 rows. **\[2 marks\]**
+
+- To begin with, we proceed with rearrange the data into a long format so that there is a row for each batter in each innings
+
+```{r}
+ashes_long <- pivot_longer(data = ashes, cols = "Test 1, Innings 1" : 
+"Test 5, Innings 2", names_to = "test_innings", values_to = "performance")
+ashes_long
+dim(ashes_long)
+```
+
+Currently, we feel that each row represents one batter in one innings, which satisfies the tidy data requirement.
+
+This data is in wide format. After we transform it into long format, our data will have 270 rows. After transformation, each row will represent a batting innings for a player.
+
+\(ii\) Each cell should represent only one measurement. Use str_match() to create new columns for each of the following for each player innings: **\[2 marks\]**
+
+• the player’s batting number,
+
+• their score, and
+
+• the number of balls they faced.
+
+**\[Total: 4 marks\]**
+
+- Next, we will proceed by using str_match() to create new columns as required by the question.
+
+```{r}
+matches_needing <- str_match(
+  ashes_long$performance,
+  "Batting at number (\\d+), scored (\\d+) runs from (\\d+) balls"
+)
+
+ashes_long <- ashes_long %>%
+  mutate(
+    batting_number = as.integer(matches_needing[,2]),
+    score = as.integer(matches_needing[,3]),
+    balls = as.integer(matches_needing[,4])
+  )
+
+head(ashes_long)
+ashes_long
+```
+
+Therefore, we created three new variables in the dataset: batting_number, score, and balls. We see that each newly created cell now contains a measurement, meeting the requirement for clean data.
+
+### Part (b)
+
+Recode the data to make it tame, that is,
+
+• Ensure all categorical variables with a small number of levels are coded as factors, **\[1 mark\]**
+
+• Ensure all categorical variables with a large number of levels are coded as characters, **\[1 mark\]**
+
+• Ensure all quantitative variables are coded as integers or numeric, as appropriate. **\[1 mark\]**
+
+**\[Total: 3 marks\]**
+
+- Next, we will recode the data to make it tame.
+
+```{r}
+ashes_tidy_need <- ashes_long %>%
+  mutate(
+    team = factor(team),
+    role = factor(role),
+    test_innings = factor(test_innings),
+    batter = as.character(batter),
+    performance = as.character(performance),
+    batting_number = as.integer(batting_number),
+    score = as.integer(score),
+    balls = as.integer(balls)
+  )
+
+glimpse(ashes_tidy_need)
+```
+We see that after recoding the dataset, we have the following: team, role, and test_innings are stored as factors, batter and performance are stored as characters, and batting_number, score, and balls are stored as integers.
+
+Therefore, we have completed recoding the dataset, which ensures that each variable has the appropriate data type.
+
+### Part (c)
+
+Clean the data; recode the factors using fct_recode() such that there are no typographical errors in the team names and player roles.
+
+**\[Total: 4 marks\]**
+
+- Next, we continue with data cleaning by following the instructions in the question, which is to recode the factors using fct_recode() such that there are no typographical errors in the team names and player roles.
+
+Step 1: We will proceed with checking the levels of the categorical variables.
+
+```{r}
+levels(ashes_tidy_need$team)
+levels(ashes_tidy_need$role)
+```
+Step 2: We will proceed with recoding the categorical variables.
+
+```{r}
+ashes_clean_need <- ashes_tidy_need %>%
+  mutate(
+    team = fct_recode(team,
+      "England" = "English"
+    ),
+    
+    role = fct_recode(role,
+      "batter" = "bat",
+      "batter" = "batting",
+      "batter" = "batsman",
+      "bowler" = "bowl",
+      "all-rounder" = "allrounder",
+      "all-rounder" = "all rounder"
+    )
+  )
+```
+
+
+Step 3: We will proceed with checking the cleaned levels.
+
+```{r}
+levels(ashes_clean_need$team)
+levels(ashes_clean_need$role)
+```
+We see that after cleaning the data using fct_recode(), the categorical variables now contain consistent levels including: team: Australia, England; role: batter, bowler, all-rounder, wicketkeeper.
+
+Therefore, we see that after cleaning the data using fct_recode(), all spelling errors in team names and player roles have been successfully corrected.
+
+### Part (d)
+
+\(i\) Produce a histogram of all scores during the series. \[1 mark\]
+
+- Firstly, we proceed by producing a histogram of all scores during the series.
+
+```{r}
+ggplot(ashes_clean_need, aes(x = score)) +
+  geom_histogram(binwidth = 5, fill = "skyblue", colour = "black") +
+  labs(
+    title = "Histogram of all scores during the series",
+    x = "Score",
+    y = "Frequency"
+  )
+
+```
+
+Therefore, we see that a histogram of all batting scores during the series.
+
+\(ii\) Describe the distribution of scores, considering shape, location spread and outliers. \[2 marks\]
+
+- Next, we proceed with describing the distribution of scores, considering shape, location spread and outliers.
+
+
+```{r}
+ggplot(ashes_clean_need, aes(x = score)) +
+  geom_histogram()
+summary(ashes_clean_need$score)
+IQR(ashes_clean_need$score, na.rm = TRUE)
+sd(ashes_clean_need$score, na.rm = TRUE)
+```
+- Firstly, we continue with the distribution of scores. We see that the score distribution is skewed to the right when we look at the histogram above. We observe that most batting innings result in relatively low scores, while a small number of innings produce very high scores, forming a long tail to the right.
+
+- Secondly, we continue with location. We see that the median score is 18 points, while the mean score is approximately 32.09 points. The mean score is significantly higher than the median, which further indicates the presence of a right-skewed distribution influenced by several high scores.
+
+- Thirdly, We will continue with the spread. We see that the spread of the data is quite large. We observe that the scores range from a minimum of 0 points to a maximum of 244 points, with an interquartile range (IQR) of 35 points and a standard deviation of approximately 41.308 points, indicating substantial variability in batting performance.
+
+- Finally, We continue with the histogram showing several extremely high scores on the right side of the distribution, which appear far from the majority of observations. Most scores are below 60 points, while a few rounds have scores exceeding 100 points, up to 244 points. In addition, we use the interquartile range (IQR) to identify potential outliers; the upper bound for potential outliers is: Q3 + 1.5 x IQR = 41 + 1.5 x 35 = 93.5. Therefore, we see that scores above 93.5 points can be considered outliers. Several scores in the frequency histogram exceed this threshold, specifically scores above 100 points and the maximum score of 244 points, indicating the presence of high outliers in the dataset.
+
+\(iii\) Produce a bar chart of the teams participating in the series, with different colours for each team. Noting that each player is represented by 10 rows in the data frame, how many players were used by each team in the series? \[2 marks\]
+
+- Next, we continue with produce a bar chart of the teams participating in the series, with different colors for each team.
+
+```{r}
+ggplot(ashes_clean_need, aes(x = team, fill = team)) +
+  geom_bar() +
+  labs(
+    title = "Number of Batting Innings by Team",
+    x = "Team",
+    y = "Count"
+  )
+```
+We have finished producing a bar chart showing the number of rows (batting innings) for each team, with different colors representing Australia and England.
+
+Next, we will count the number of players used.
+
+```{r}
+ashes_clean_need %>%
+  distinct(team, batter) %>%
+  count(team)
+```
+
+Therefore, we see that the number of players participating in the series of matches is: Australia has 13 players and England has 14 players. I want to emphasize that these figures were collected by identifying the number of unique batters representing each team in the dataset.
+
+**\[Total: 5 marks\]**
+
+### Part (e)
+
+\(i\) For the scores for each team and by using ggplot, produce histograms of scores during the series, faceted by team. \[2 marks\]
+
+- To begin with, we proceed by producing histograms of scores during the series, faceted by the team.
+
+```{r}
+ggplot(ashes_clean_need, aes(x = score, fill = team)) +
+  geom_histogram(binwidth = 10, colour = "black") +
+  facet_wrap(~ team) +
+  labs(
+    title = "Distribution of Scores by Team",
+    x = "Score",
+    y = "Frequency"
+  )
+```
+
+Therefore, we have created two histograms, one for Australia and one for England, displayed side-by-side using facet_wrap(). We observe that the frequency histograms are divided into multiple facets showing the distinct distribution of batting scores for each team. Faceting allows us to visually compare the score distributions of Australia and England during the series.
+
+\(ii\) Produce side-by-side boxplots of scores by each team during the series. \[2 marks\]
+
+Next, we produce side-by-side boxplots of scores by each team during the series.
+
+```{r}
+ggplot(ashes_clean_need, aes(x = team, y = score, fill = team)) +
+  geom_boxplot() +
+  labs(
+    title = "Boxplots of Scores by Team",
+    x = "Team",
+    y = "Score"
+  )
+```
+
+Therefore, the box plot will give us an idea of the distribution of scores of the two teams.
+
+
+\(iii\) Compare the distributions of scores by each team during the series, considering shape, location, spread and outliers, and referencing the relevant plots. Is there evidence that one team has a higher average score than the other? \[3 marks\]
+
+- Next, we proceed to compare the score distribution of each team throughout the series, considering the shape, location, spread, and outliers, and refer to relevant charts.
+
+```{r}
+ggplot(ashes_clean_need, aes(x = score, fill = team)) +
+  geom_histogram() +
+  facet_wrap(~ team)
+ggplot(ashes_clean_need, aes(x = team, y = score, fill = team)) +
+  geom_boxplot()
+ashes_clean_need %>%
+  group_by(team) %>%
+  summarise(
+    mean_score = mean(score, na.rm = TRUE),
+    median_score = median(score, na.rm = TRUE),
+    sd_score = sd(score, na.rm = TRUE)
+  )
+```
+
+Firstly, we will address the shape. From the faceted histograms, we observe that both teams have a right-skewed distribution, forming a long tail to the right. This suggests that most innings have relatively low scores, while some innings have very high scores.
+
+Secondly, we will address the location. We observe that the box plot shows that Australia generally has a higher median score than England, indicating a higher typical batting performance.
+
+Thirdly, we will address the spread. We observe that Australia also appears to have a wider score range, or in other words, the colored rectangle in a box plot has a larger IQR range compared to the others, and some observations are highly valuable.
+
+Finally, we will address the outliers. There are outliers for both teams, especially very high scores located far above the upper quartiles.
+
+
+From the graphs Australia seem to have the higher average score. This is supported by the fact that they have the higher median, and a higher sixes count in a few of the innings. So Australia have the higher average score in this test match.
+
+
+**\[Total: 7 marks\]**
+
+### Part (f)
+
+The Scoring rates:
+
+\(i\) Produce a scatterplot of scores against number of balls. \[1 mark\]
+
+- We proceed by producing a scatterplot of scores against the number of balls.
+
+```{r}
+ggplot(ashes_clean_need, aes(x = balls, y = score)) +
+  geom_point(alpha = 0.7) +
+  labs(
+    title = "Scatterplot of scores against the number of balls",
+    x = "Number of balls",
+    y = "Score"
+  )
+```
+
+We have now worked out the relationship between the number of balls faced and the number of runs scored. Each point represents a batting innings. On the x axis is the number of balls faced and on the y axis is the number of runs scored.
+
+\(ii\) Describe the relationship between score and number of balls. Are players who face more balls likely to score more runs? \[1 mark\]
+
+
+This scatter plot shows run scores plotted against the number of balls that each player has faced. As the number of balls faced tends to increase so should the number of runs scored. This scatter plot shows that all the observations for small numbers of balls faced lie on the left hand side of the plot and have low scores. Meanwhile the observations for players with large numbers of balls faced lie on the right hand side of the plot and tend to have higher scores. This is because a player who has more balls to face will have more opportunities to score more runs. The scatter plot shows a little bit of variation between the run scores of the players with the same number of balls faced. While they tend to have the same run scores they are sometimes vastly different.
+
+\(iii\) Compute a new variable, scoring_rate, defined as the number of runs divided by the number of balls. Produce a scatterplot of scoring_rate against number of balls. \[2 marks\]
+
+Next, we calculate a new variable, the scoring rate, which is defined as the number of points divided by the number of balls.
+
+```{r}
+ashes_scoring <- ashes_clean_need %>%
+  mutate(scoring_rate = score / balls)
+
+ggplot(ashes_scoring, aes(x = balls, y = scoring_rate)) +
+  geom_point(alpha = 0.7) +
+  labs(
+    title = "Scatterplot of scoring rate against number of balls",
+    x = "Number of balls",
+    y = "Scoring Rate (Runs per Ball)"
+  )
+```
+
+Therefore, we have completed producing a scatterplot showing the relationship between scoring rate and number of balls.
+
+\(iv\) Is there a relationship between scoring rate and number of balls? Are players who face more balls likely to score runs more quickly? \[2 mark\]
+
+We see that the scatter plot above shows no clear relationship between scoring rate and number of balls. More clearly, we see that players who face many balls tend to have scoring rates around from 0.3 to 0.7 runs per ball, similar to many players who face fewer balls. While we observe that some players with very few balls faced show higher scoring rates, these appear to be short innings rather than sustained scoring performance. Therefore, we feel that players who face more balls are not necessarily scoring runs more quickly.  
+
+**\[Total: 6 marks\]**
+
+### Part (h)
+
+The Teams’ roles
+
+\(i\) Produce a bar chart of the number of players on each team participating in the series, with segments coloured by the players’ roles. Ensure these are NOT stacked barplots. \[2 marks\]
+
+To begin with, we proceed to produce a bar chart of the number of players on each team participating in the series, with segments colored by the players’ roles
+
+```{r}
+players <- ashes_clean_need %>%
+  distinct(batter, team, role)
+
+ggplot(players, aes(x = team, fill = role)) +
+  geom_bar(position = "dodge") +
+  labs(
+    title = "Number of players by team and role",
+    x = "Team",
+    y = "Number of players"
+  )
+```
+
+Players are listed more than once if they batted in more than one innings. We have selected unique values in each of the 3 columns: batter, team and role. This bar chart shows the number of players in each role in the Australian and English teams.
+
+Therefore, we feel that the bar chart displays the number of players on each team, with different colors representing the roles of the players.
+
+\(ii\) Produce a contingency table of the proportion of players from each team who play in each particular role. \[2 marks\]
+
+Next, we continue with producing a contingency table of the proportion of players from each team who plays in each particular role.
+
+```{r}
+role_table <- table(players$team, players$role)
+
+prop.table(role_table, margin = 1)
+```
+
+\(iii\) Using these two figures, state which team is made up of a larger proportion of batters, and which team contains a larger proportion of all rounders? \[2 marks\]
+
+Next, we continue using the two statistics above and determine which team has a higher batting percentage and which team has a higher all-around player percentage.
+
+In my opinion, from the contingency table of proportions, we see that the proportion of batters is higher for Australia (0.462) compared to England (0.357). From this, we can infer that Australia has a higher proportion of skilled batters, while England has a higher proportion of all-around players.
+
+
+**\[Total: 6 marks\]**
+
+## Question 3: Short Case Study
+
+**\[Total: 30 marks\]**
+
+### Getting started
+
+To help you out, we're starting you off with an R Project that contains two folders. The first folder, *code*, contains this R Markdown file which you will use as a template to write your assignment. The code chunks have been set up for you, in which you can code your solutions! The second folder, *data*, contains two datasets. You will work with the partially cleaned data `cleaned_data.csv` first.
+
+| Variable | Description |
+|:-----------------------------------|:----------------------------------:|
+| `id` | A unique numeric ID for the board game |
+| `name` | The published name of the board game |
+| `year` | The year the board game was published (in years A.D.) |
+| `rank` | The rank of the board game |
+| `average` | The average user rating |
+| `users_rated` | The number of users who rated the game |
+| `primary` | The primary game this is associated with |
+| `playingtime` | Estimated playing time (in minutes; cannot exceed 10 hours) |
+| `minage` | The minimum age for which this game is recommended |
+| `territory_building` | A logical variable indicating whether this game belongs to the territory building category |
+| `party_game` | A logical variable indicating whether this game belongs to the party game category |
+| `fantasy` | A logical variable indicating whether this game belongs to the fantasy category |
+| `abstract_strategy` | A logical variable indicating whether this game belongs to the abstract strategy category |
+| `childrens_game` | A logical variable indicating whether this game belongs to the children's game category |
+| `max_players` | A character variable indicating the max number of players this game can be played by |
+
+### Load packages and data
+
+```{r, message = FALSE, warning = FALSE}
+library(tidyverse)
+library(here)
+data_to_clean <- read_csv(here("data/cleaned_data.csv"))
+data_to_clean
+```
+
+The dataset has only been partially cleaned. We'd like you to complete the rest of the cleaning with the following steps:
+
+#### Part 1 \[Total: 7 marks\]
+
+1a) Recode the data to make it tame **\[3 marks\]**:
+
+-   Ensure all categorical variables with a small number of levels are coded as factors
+-   Ensure all categorical variables with a large number of levels are coded as characters and
+-   Ensure all quantitative variables are coded as integers or numeric, as appropriate
+
+```{r}
+# Based on the information provided above regarding the variable summary table, we will proceed to make the dataset tame, ensuring each variable is stored using the appropriate data type based on the information it represents.
+
+data_tame <- data_to_clean %>%
+  mutate(
+    id = as.integer(id),
+    name = as.character(name),
+    year = as.integer(year),
+    rank = as.integer(rank),
+    average = as.numeric(average),
+    users_rated = as.integer(users_rated),
+    primary = as.character(primary),
+    playingtime = as.integer(playingtime),
+    minage = as.integer(minage),
+    owned = as.integer(owned),
+    territory_building = factor(territory_building),
+    party_game = factor(party_game),
+    fantasy = factor(fantasy),
+    abstract_strategy = factor(abstract_strategy),
+    childrens_game = factor(childrens_game),
+    max_players = factor(max_players)
+  )
+
+glimpse(data_tame)
+
+
+```
+
+1b) Using the `summary()` and `table()` functions, check each variable for data entry errors. Use your judgement to either correct the errors or replace the incorrect entries with `NA`. **\[4 marks\]**
+
+*Hint: `case_when()` is a useful function!*
+
+```{r}
+# Next, using the guidance of the question to implement this, we will use the `summary()` and `table()` functions, and we will check each variable for data entry errors. Additionally, we will evaluate and correct errors or replace incorrect entries with `NA`.
+
+# Step 1: We proceed to inspect the variables.
+
+# We will use `summary()` to check the quantitative variables (numeric/integer) in the most optimal way.
+summary(data_tame)
+
+# In addition, we will use `table()` to check with categorical variables because it will be more efficient.
+table(data_tame$max_players)
+table(data_tame$territory_building)
+table(data_tame$party_game)
+table(data_tame$fantasy)
+table(data_tame$abstract_strategy)
+table(data_tame$childrens_game)
+
+# Step 2: We proceed to correct or replace the incorrect values based on step 1.
+
+data_clean <- data_tame %>%
+  mutate(
+    year = case_when(
+      year < 1800 ~ NA_integer_,
+      year > 2025 ~ NA_integer_,
+      TRUE ~ year
+    ),
+
+    playingtime = case_when(
+      playingtime > 600 ~ NA_integer_,
+      playingtime == 0 ~ NA_integer_,
+      TRUE ~ playingtime
+    ),
+
+    max_players = case_when(
+      max_players == "Large group" ~ "large group",
+      TRUE ~ max_players
+    )
+  )
+## Therefore, we have finished checking the variables in the dataset.
+```
+
+#### Part 2 \[Total: 8 marks\]
+
+2a) Produce a histogram and a boxplot to show the distribution of the average rating for all board games. **\[2 marks\]**
+
+```{r}
+# We proceed to produce a histogram and a boxplot to show the distribution of the average rating for all board games.
+ggplot(data_clean, aes(x = average)) +
+  geom_histogram(binwidth = 0.5, fill = "skyblue", colour = "black") +
+  labs(
+    title = "Histogram of average ratings",
+    x = "Average Rating",
+    y = "Frequency"
+  )
+
+```
+
+2b) Using your plots from part 2a), describe the distribution of scores. Consider the shape, location, spread and outliers. **\[2 marks\]**
+
+- To begin with, we'll discuss the shape. We see that the distribution is unimodal and slightly left-skewed. Furthermore, we observe that most board games have average ratings between approximately 5 and 7.5, with a longer tail extending toward the lower ratings (also on the left side).
+
+- Secondly, we'll address the location. The histogram shows that the center of the distribution appears to be between 6 and 7, with the highest columns in the frequency histogram concentrated within this range.
+
+- Thirdly, we'll discuss the spread. The histogram shows moderate dispersion, ranging from 2 to 10. However, most of the data is concentrated in a narrower area around the center.
+
+- Finally, regarding outliers, we see that there appear to be a few low-level outliers, particularly those with scores below 3, as these are quite far from the main cluster of the distribution. We feel that there don't seem to be many extreme high-level outliers.
+
+2c) Create a coloured plot to visualise the quantity of board games that are appropriate for various numbers of players. Write a descriptive figure caption that includes an interpretation of the data. **\[3 marks\]**
+
+```{r}
+# We proceed to create a colored plot to visualize the quantity of board games that are appropriate for various numbers of players.
+
+ggplot(data_clean, aes(x = max_players, fill = max_players)) +
+  geom_bar() +
+  labs(
+    title = "Number of Board Games by Maximum Number of Players",
+    x = "Maximum Number of Players",
+    y = "Count"
+  )
+
+```
+
+Include Caption: The board games classification is based on the maximum number of players. In the graph we can see that large and small group games predominate. The fact that the quantity of 2 person, party, and 1 player board games is low confirms that many games are created to allow social interaction between many players, and few are created for playing in small groups.
+
+
+#### Part 3: \[Total: 10 marks\]
+
+3a) Produce a boxplot for average board game ratings. Make this a side-by-side boxplot by separating children's games and non-children's games.
+
+Colour these two boxes and write an appropriate caption that includes a brief interpretation of results and comparison between the two types of games. **\[4 marks\]**
+
+```{r}
+# 
+ggplot(data_clean, aes(x = childrens_game, y = average, fill = childrens_game)) +
+  geom_boxplot() +
+  labs(
+    title = "Average ratings of children's and non-Children's board games",
+    x = "Children's game",
+    y = "Average rating"
+  )
+
+```
+
+Caption: This box plot shows the mean rating given to children’s board games and to non-children’s board games. The median of FALSE is higher than the median of TRUE. The IQR of the median of FALSE is wider than the IQR of the median of TRUE. There are outliers for both ratings. There are more children’s rating outliers at the lower end of the ratings and more non-children’s rating outliers at the higher end of the ratings. The children’s board games have the most consistent ratings. The non-children’s board games offer the most opportunity for rating them as high as possible.
+
+3b) Produce a bar chart that shows the number of board games that are children's games, coloured by whether or not they are a party game. Ensure these are NOT stacked barplots.
+
+Write an appropriate caption that includes a brief interpretation of results and comparison between the two types of games. **\[4 marks\]**
+
+```{r}
+# We will proceed to produce a bar chart that shows the number of board games that are children's games, colored by whether or not they are a party game and ensure these are not stacked barplots
+ggplot(data_clean, aes(x = childrens_game, fill = party_game)) +
+  geom_bar(position = "dodge") +
+  labs(
+    title = "Number of children's and non-children's games by party game category",
+    x = "Children's game",
+    y = "Count",
+    fill = "Party game"
+  )
+
+```
+
+Caption: A dataset of children’s and non-children’s board games has been collected with information on whether each game is a party game. As you would expect, the non-children’s games are in the majority but as shown in the plot the majority of games are not party games. The children’s dataset has relatively few samples, but as you can see from the plot, a large majority of children’s games are group games. Conversely, while non-children’s games are not typically party games, they are often more complex and do not fall into the non-party category.
+
+3c) Produce a plot to visualise the relationship between board game rank and the average rating. Write an appropriate caption that includes a brief description of the relationship you observe. **\[3 marks\]**
+
+```{r}
+# We will proceed to produce a plot to visualize the relationship between board game rank and the average rating.
+ggplot(data_clean, aes(x = average, y = rank)) +
+  geom_point(alpha = 0.5) +
+  labs(
+    title = "Relationship between average rating and board game rank",
+    x = "Average rating",
+    y = "Rank"
+  )
+
+```
+
+Caption: This scatterplot shows the average rating and rank of the board games. The games on this scatterplot have a negative non-linear relationship. In the scatterplot, the games with higher average ratings have lower (better) ranks. The strength of this relationship seems to increase as the average rating is higher than 6. At these high rating values, an increase in the average rating leads to a large decrease in the rank. The relationship between average rating and rank is not perfect and there are many exceptions, especially in terms of the average rating values, so there are many other factors that also impact rank.
+
+#### Part 4 \[Total: 5 marks\]
+
+4a) Produce two plots that are next to each other horizontally. On the left, display the relationship between the number of users who rated a board game and the number who own it for non-children’s games. On the right, show the same relationship for children’s games. **\[2 marks\]**
+
+```{r}
+# We will draw two graphs side-by-side horizontally as required by the question.
+
+ggplot(data_clean, aes(x = users_rated, y = owned)) +
+  geom_point(alpha = 0.5) +
+  facet_wrap(~ childrens_game) +
+  labs(
+    title = "Relationship between users rated and ownership",
+    x = "Number of users who rated",
+    y = "Number of owners"
+  )
+```
+
+4b) Describe the relationship between the variables plotted in 4a). **\[2 marks\]**
+
+Correlation between the number of ratings for children and non-children games and the number of owners for these games. From these scatter plots we can see that the correlation is strongly positive, so it is likely that games with more ratings also have more owners. The linear trend is maintained in both cases, with children games having a smaller spread and fewer outliers compared to the non-children games. This holds true as well to the previous plot. For the non-children games, however, the extreme values are more pronounced.
+
+### Part 5: Data cleaning challenge (Data Science Students) \[10 marks\]
+
+The board game dataset we've been working with so far has been partially cleaned. In this final question, we'd like you to work with the uncleaned file and complete three data cleaning challenges.
+
+##### 5a) Load the data
+
+Load the dataset `uncleaned_data.csv` file
+
+```{r}
+data_unclean <- read_csv("data/not_cleaned_data.csv")
+data_unclean
+
+```
+
+##### 5b) Rearrange the data :
+
+This uncleaned data is structured such that each row represents a single rating of a board game. We'd like you to reformat the data so that each row instead represents a single board game (like the structure of `cleaned_data.csv`). Use code to then show the first six rows of your cleaned dataframe. **\[3 marks\]**
+
+```{r}
+# We proceed to rearrange the data:
+
+# This dataframe has more than one row per chess game because each row corresponds to a different user rating. So I grouped by the variables for a board game (ID, name, etc.) and summarized with summarize() to have only one row per game with the first value for the other variables.
+
+data_rearranged <- data_unclean %>%
+  group_by(id, name, year, primary, playingtime, minage, owned, max_players) %>%
+  summarise(
+    category_of_game = first(category_of_game),
+    boardgame_rating = first(boardgame_rating),
+    game_has_category = first(game_has_category),
+    .groups = "drop"
+  )
+
+head(data_rearranged) 
+
+# So our data frame has now been arranged so that each row of data is associated with a board game.
+
+```
+
+##### 5c) Create new variables: 
+
+Each variable should represent only one measurement. If you look at the `boardgame_rating` variable, you'll notice that this is not the case! Use `str_match()` to create new columns for each of the following for each board game:
+
+-   the board game rank
+-   the average rating of the board game
+-   the number of users who rated the board game
+
+Use code to then show the first six rows of your cleaned dataframe. **\[3 marks\]**
+
+```{r}
+# We use `str_match()` to create new columns for each of the following items for each chess game as required by the question.
+matches <- str_match(
+  data_rearranged$boardgame_rating,
+  "([0-9]+).*?([0-9]+\\.?[0-9]*).*?([0-9]+)"
+)
+
+data_final_finding <- data_rearranged %>%
+  mutate(
+    rank = as.integer(matches[, 2]),
+    average = as.numeric(matches[, 3]),
+    users_rated = as.integer(matches[, 4])
+  )
+
+head(data_final_finding)
+
+```
+
+##### 5d) Hypothesis Testing
+
+From your cleaned dataframe in 5c), test at 5% significance if between 'Large group' and 'Two Person'
+
+\(i\) the playing time for 'Large group' is greater than 'Two Person'
+
+We will conduct a 5% significance test to see if there is a significant difference between 'Large Group' and 'Two Person' when the playing time for 'Large Group' is greater than 'Two Person'.
+
+```{r}
+library(rstatix)
+
+# Filter relevant groups
+data_test <- data_final_finding %>%
+  filter(max_players %in% c("large group", "two person"))
+
+# Wilcoxon test (one-sided)
+test_playingtime <- data_test %>%
+  wilcox_test(
+    playingtime ~ max_players,
+    alternative = "greater"
+  )
+
+test_playingtime
+
+```
+
+- In conclusion, the p-value is 6.22 × 10⁻³¹, which is much smaller than 0.05, we reject the null hypothesis at the 5% significance level. We see that here is strong statistical evidence that the playing time for large group games is greater than that for two-person games.
+
+
+\(ii\) the board game rank for 'Large group' is different from 'Two Person' 
+
+Please include your code, conclusion and brief summary of your findings.
+
+*Hint: Use the package rstatix, and functions wilcox_test and filter*
+
+**\[4 marks\]**
+
+- We will conduct a 5% significance test to see if there is a significant difference between 'Large Group' and 'Two Person' when the board game rank for 'Large Group' is different from 'Two Person'.
+
+```{r}
+# Wilcoxon test (two-sided)
+test_rank <- data_test %>%
+  wilcox_test(
+    rank ~ max_players,
+    alternative = "two.sided"
+  )
+test_rank
+
+```
+
+- In conclusion, we see that the p-value is 0.00123, which is less than 0.05, so we reject the null hypothesis at the 5% significance level. Thereby, we see that there is sufficient statistical evidence to imply that the board game rank for large group games is significantly different from that of two-person games.
+
+** Brief summary: The Wilcoxon test was used to find which metrics had statistically significant differences between large group and two player board games. Our results indicate that large group games last longer than two player games and that the distributions of ranks are different. These results show that different characteristics of games exist for different numbers of intended players.
+
